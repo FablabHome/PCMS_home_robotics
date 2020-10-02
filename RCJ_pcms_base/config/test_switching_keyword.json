@@ -1,0 +1,18 @@
+{
+    "switch to": {
+        "answer": "Ok, switching from person follower to furnitures detector",
+        "and": [
+            "switch", "to"
+        ],
+        "or": [],
+        "action": "switch_to"
+    },
+    "switch back": {
+        "answer": "Ok, switching back from furnitures detector to person follower",
+        "and": [
+            "switch", "back"
+        ],
+        "or": [],
+        "action": "switch_back"
+    }
+}
