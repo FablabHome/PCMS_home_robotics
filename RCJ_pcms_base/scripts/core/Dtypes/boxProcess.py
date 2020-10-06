@@ -114,20 +114,38 @@ class BBox:
 
     """
 
-    def __init__(self, coordinates, label='', model='', score=0.0, padding=None, shape=None):
+    def __init__(
+            self,
+            x1: int,
+            y1: int,
+            x2: int,
+            y2: int,
+            coordinates: None or dict,
+            label: str = '',
+            model: str = '',
+            score: float = 0.0,
+            padding=None,
+            shape=None
+    ):
         self.label = label
         self.coordinates = coordinates
         self.padding = padding
         self.score = score
         self.model = model
 
-        for key, value in self.coordinates.items():
-            self.coordinates[key] = int(value)
+        if self.coordinates is not None:
+            for key, value in self.coordinates.items():
+                self.coordinates[key] = int(value)
 
-        self.x1 = self.coordinates['x1']
-        self.y1 = self.coordinates['y1']
-        self.x2 = self.coordinates['x2']
-        self.y2 = self.coordinates['y2']
+            self.x1 = self.coordinates['x1']
+            self.y1 = self.coordinates['y1']
+            self.x2 = self.coordinates['x2']
+            self.y2 = self.coordinates['y2']
+        else:
+            self.x1 = x1
+            self.y1 = y1
+            self.x2 = x2
+            self.y2 = y2
 
         if shape is not None and padding is not None:
             self.padding_box = self.__calc_padding(shape)
