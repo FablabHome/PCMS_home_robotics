@@ -41,7 +41,7 @@ class ModelInput:
         return blob
 
 
-class Outputs :
+class Outputs:
     @abstractmethod
     def process_outputs(self, outputs: Any) -> Any:
         return outputs
@@ -77,15 +77,12 @@ class NodeProgram:
 
 
 class Node:
-    def __init__(self, *node_programs, name: str, anonymous: bool = True):
+    def __init__(self, *node_programs, name: str = 'node', anonymous: bool = True):
         self.node_programs = node_programs
         self.name = name
         self.anonymous = anonymous
 
-        if len(self.node_programs) == 1:
-            rospy.init_node(self.node_programs[0].id)
-        else:
-            rospy.init_node(self.name)
+        rospy.init_node(self.name)
 
     @abstractmethod
     def reset(self):
@@ -94,3 +91,9 @@ class Node:
     @staticmethod
     def spin():
         rospy.spin()
+
+    @staticmethod
+    def wait_for_msg(topic, data_class):
+        rospy.loginfo(f'Waiting response from {topic}')
+        rospy.wait_for_message(topic, data_class)
+        rospy.loginfo(f'{topic}: Ok')
