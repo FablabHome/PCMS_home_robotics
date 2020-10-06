@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="62851194-90a6-40d0-98dd-3b130ada2c4f" name="home_robot">
+        <fileTransfer rootFolder="/home/mustar/pcms/src/" accessType="SFTP" host="192.168.50.5" port="22" sshConfigId="5f50e089-9bc3-41f9-bb3e-795c10b0d4b5" sshConfig="mustar_with_FABLAB-HOME">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
