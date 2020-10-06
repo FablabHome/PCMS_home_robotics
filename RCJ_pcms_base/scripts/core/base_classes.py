@@ -24,14 +24,14 @@ SOFTWARE.
 
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, List
 import numpy as np
 
 import rospy
 
 
-class ModelInput(ABC):
+class ModelInput:
     @abstractmethod
     def preprocess_to(self, input_data) -> Any:
         return input_data
@@ -41,13 +41,13 @@ class ModelInput(ABC):
         return blob
 
 
-class Outputs(ABC):
+class Outputs :
     @abstractmethod
     def process_outputs(self, outputs: Any) -> Any:
         return outputs
 
 
-class Detector(ABC):
+class Detector:
     def __init__(
             self,
             detector: Any,
@@ -67,23 +67,23 @@ class Detector(ABC):
         pass
 
 
-class NodeProgram(ABC):
-    def __init__(self, name):
-        self.name = name
+class NodeProgram:
+    def __init__(self, node_id):
+        self.id = node_id
 
     @abstractmethod
-    def serialize_output(self, outputs: Any) -> Any:
+    def serialize_output(self) -> Any:
         pass
 
 
-class Node(ABC):
-    def __init__(self, name: str, nodes: List[NodeProgram], anonymous: bool = True):
+class Node:
+    def __init__(self, *node_programs, name: str, anonymous: bool = True):
+        self.node_programs = node_programs
         self.name = name
-        self.nodes = nodes
         self.anonymous = anonymous
 
-        if len(self.nodes) == 1:
-            rospy.init_node(self.nodes[0].name)
+        if len(self.node_programs) == 1:
+            rospy.init_node(self.node_programs[0].id)
         else:
             rospy.init_node(self.name)
 
