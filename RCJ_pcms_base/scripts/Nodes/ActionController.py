@@ -25,6 +25,7 @@ SOFTWARE.
 """
 from core.base_classes import NodeProgram
 
+from home_robot_msgs.msg import CommandData
 from rospkg import RosPack
 import rospy
 
@@ -34,7 +35,7 @@ import subprocess
 import json
 
 
-class ActionControllerProgram(NodeProgram):
+class ActionController(NodeProgram):
     base = RosPack().get_path('rcj_pcms_base')
 
     def __init__(
@@ -43,7 +44,7 @@ class ActionControllerProgram(NodeProgram):
             config_file: str,
             action_commands: str = join(base, './scripts/action_commands')
     ):
-        super(ActionControllerProgram, self).__init__(node_id)
+        super(ActionController, self).__init__(node_id)
         self.config_file = config_file
         self.action_commands = action_commands
 
@@ -55,7 +56,11 @@ class ActionControllerProgram(NodeProgram):
         self.require_keywords = []
         self.separately_keywords = []
 
-    def run(self, text: str):
+        self.serialize_msg = CommandData()
+
+        self.meaning = self.response = self.action = ''
+
+    def run(self, text: str, serialize: bool = False) -> (str, str, list):
         for meaning, configs in self.configs.items():
             self.require_keywords = configs['require']
             self.separately_keywords = configs['separately']
@@ -64,19 +69,29 @@ class ActionControllerProgram(NodeProgram):
             self._has_separately_keywords(text)
 
             if self.require_keywords_status and self.separately_keywords_status:
-                rospy.loginfo(f'Text \'{text}\' matched, Meaning: {meaning}')
+                self.response = configs['response']
+                self.action = configs['action']
 
-                wait = configs['wait']
-                command, args = configs['action']
+                rospy.loginfo(f'Text \'{text}\' matched, Meaning: {meaning}, reponse: {self.response}')
+
+                command, args = self.action
                 command = join(self.action_commands, command)
 
                 command_status = subprocess.run([command, args], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-                if wait:
-                    if command_status.returncode == 0:
-                        rospy.logdebug(
-                            f'Process {command} has run successfully with output{command_status.stdout.decode("ascii")}'
-                        )
+                if command_status.returncode == 0:
+                    stdout = command_status.stdout.decode('ascii')
+                    rospy.loginfo(
+                        f'Process {command} has run successfully'
+                    )
+                    if stdout != '':
+                        rospy.loginfo(f'stdou: {stdout}')
+            else:
+                rospy.logwarn(f'Text \'{text}\' doesn\'t match anybody in the config file')
+
+            if serialize:
+                return self.serialize_output()
+            return self.meaning, self.response, self.action
 
     @staticmethod
     def _input_text_processor(text):
@@ -89,6 +104,8 @@ class ActionControllerProgram(NodeProgram):
             if require_keyword not in input_text:
                 self.require_keywords_status = False
                 break
+        else:
+            self.require_keywords_status = True
 
     def _has_separately_keywords(self, text):
         input_text = self._input_text_processor(text)
@@ -97,6 +114,11 @@ class ActionControllerProgram(NodeProgram):
             if separately_keyword in input_text:
                 self.separately_keywords_status = True
                 break
+        else:
+            self.separately_keywords_status = False
 
     def serialize_output(self) -> Any:
-        pass
+        self.serialize_msg.meaning = self.meaning
+        self.serialize_msg.response = self.response
+        self.serialize_msg.action = ' '.join(self.action)
+        return self.serialize_msg
