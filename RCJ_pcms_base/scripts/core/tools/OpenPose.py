@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 
 
+# TODO: Separate pose processing and model evaluating
 class OpenPose(object):
 
     def __init__(self, proto_path, model_path):
@@ -46,7 +47,7 @@ class OpenPose(object):
         )
         self.model = cv2.dnn.readNet(self.model_path, self.proto_path)
 
-    def detect(self, image, in_height=100, thresh=0.1):
+    def detect(self, image, in_height=480, thresh=0.1):
         h, w = image.shape[:2]
         in_width = int((in_height / h) * w)
 
