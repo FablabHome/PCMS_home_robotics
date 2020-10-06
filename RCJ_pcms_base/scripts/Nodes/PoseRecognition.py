@@ -26,10 +26,10 @@ SOFTWARE.
 
 from core.Detection import PoseDetector, PoseRecognitionInput, PoseRecognitionProcess, PoseRecognitionDetector
 from core.base_classes import NodeProgram
-from core.OpenPose import OpenPose
-from core.Box import BBox
+from core.tools import OpenPose
+from core.Dtypes import BBox
 
-from CTM_5G_showing.msg import HumanPose
+from home_robot_msgs.msg import HumanPose
 
 from keras.models import Model
 import numpy as np
@@ -38,12 +38,12 @@ import numpy as np
 class PoseRecognition(NodeProgram):
     def __init__(
             self,
-            name: str,
+            node_id: str,
             pose_detector_entry: OpenPose,
             pose_recognition_entry: Model,
             input_shape: tuple
     ):
-        super(PoseRecognition, self).__init__(name)
+        super(PoseRecognition, self).__init__(node_id)
 
         self.input_shape = input_shape
         self.pose_detector_entry = pose_detector_entry
