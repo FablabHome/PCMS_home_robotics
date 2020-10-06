@@ -41,7 +41,7 @@ class ActionControllerProgram(NodeProgram):
             self,
             node_id,
             config_file: str,
-            action_commands: join(base, './scripts/action_commands')
+            action_commands: str = join(base, './scripts/action_commands')
     ):
         super(ActionControllerProgram, self).__init__(node_id)
         self.config_file = config_file
