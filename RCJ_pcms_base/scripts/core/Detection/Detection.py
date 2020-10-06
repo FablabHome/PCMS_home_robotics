@@ -25,9 +25,8 @@ SOFTWARE.
 """
 
 from ..base_classes import *
-from ..Box import posToBBox
-from ..OpenPose import OpenPose
-from ..Box import BBox
+from ..Dtypes import BBox, posToBBox
+from ..tools import OpenPose
 
 from PIL import Image
 from keras_yolo3_qqwweee.yolo import YOLO
