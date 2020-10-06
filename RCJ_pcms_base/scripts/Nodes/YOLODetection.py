@@ -29,16 +29,16 @@ from core.base_classes import NodeProgram
 
 from keras_yolo3_qqwweee.yolo import YOLO
 
-from CTM_5G_showing.msg import ObjectBox, ObjectBoxes
+from home_robot_msgs.msg import ObjectBox, ObjectBoxes
 
 
 class YOLODetection(NodeProgram):
     def __init__(
             self,
-            name: str,
+            node_id: str,
             detector_entry: YOLO
     ):
-        super(YOLODetection, self).__init__(name)
+        super(YOLODetection, self).__init__(node_id)
 
         self.detector_entry = detector_entry
 
@@ -60,9 +60,9 @@ class YOLODetection(NodeProgram):
         self.outputs = self.detector.detect(image)
         return self.outputs
 
-    def serialize_output(self, outputs: dict) -> ObjectBoxes:
+    def serialize_output(self) -> ObjectBoxes:
         self.serialize_boxes = ObjectBoxes()
-        for box in outputs['out_boxes']:
+        for box in self.outputs['out_boxes']:
             self.serialize_box.label = box.label
             self.serialize_box.model = 'yolo'
 
