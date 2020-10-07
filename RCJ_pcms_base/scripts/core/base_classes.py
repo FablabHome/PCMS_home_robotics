@@ -77,8 +77,7 @@ class NodeProgram:
 
 
 class Node:
-    def __init__(self, *node_programs, name: str = 'node', anonymous: bool = True):
-        self.node_programs = node_programs
+    def __init__(self, name: str = 'node', anonymous: bool = True):
         self.name = name
         self.anonymous = anonymous
 

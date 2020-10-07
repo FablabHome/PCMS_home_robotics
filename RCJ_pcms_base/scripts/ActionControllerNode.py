@@ -33,8 +33,8 @@ import rospy
 
 
 class ActionControllerNode(Node):
-    def __init__(self, *node_programs, name: str = 'acp', anonymous: bool = False):
-        super(ActionControllerNode, self).__init__(*node_programs, name=name, anonymous=anonymous)
+    def __init__(self, name: str = 'acp', anonymous: bool = False):
+        super(ActionControllerNode, self).__init__(name=name, anonymous=anonymous)
         self.processed_result_publisher = rospy.Publisher(
             f'{rospy.get_name()}/processed_result',
             CommandData,
@@ -48,7 +48,7 @@ class ActionControllerNode(Node):
             queue_size=1
         )
 
-        self.acp_program: ActionController = self.node_programs[0]
+        self.acp_program = ActionController(node_id=self.name, config_file='./tests/ActionController/test.json')
         self.result = CommandData()
 
     def _callback(self, text: String):
@@ -60,6 +60,5 @@ class ActionControllerNode(Node):
 
 
 if __name__ == '__main__':
-    acp = ActionController(node_id='acp', config_file='/tmp/test.json')
-    ac_node = ActionControllerNode(acp, name='acp')
+    ac_node = ActionControllerNode(name='acp')
     ac_node.spin()
