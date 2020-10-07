@@ -78,21 +78,45 @@ class NodeProgram:
 
 class Node:
     def __init__(self, name: str = 'node', anonymous: bool = True):
+        """
+
+        Args:
+            name: The name of the node, will be use in rospy.init_node
+            anonymous: If you want to generate a random ID for the node
+
+        """
         self.name = name
         self.anonymous = anonymous
 
-        rospy.init_node(self.name)
+        rospy.init_node(self.name, anonymous=self.anonymous)
+        rospy.loginfo(f'Node {rospy.get_name()} Created')
 
     @abstractmethod
     def reset(self):
+        """
+        This method will reset every values in the Node
+        """
         pass
 
     @staticmethod
     def spin():
+        """
+        Call rospy.spin to spin the node
+        """
         rospy.spin()
 
     @staticmethod
     def wait_for_msg(topic, data_class):
+        """
+        You can use this method for waiting a msg with info coming out
+
+        Args:
+            topic: The topic you want to wait for
+            data_class:
+
+        Returns: None
+
+        """
         rospy.loginfo(f'Waiting response from {topic}')
         rospy.wait_for_message(topic, data_class)
         rospy.loginfo(f'{topic}: Ok')
