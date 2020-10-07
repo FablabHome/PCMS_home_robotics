@@ -35,12 +35,15 @@ import rospy
 class ActionControllerNode(Node):
     def __init__(self, name: str = 'acp', anonymous: bool = False):
         super(ActionControllerNode, self).__init__(name=name, anonymous=anonymous)
+
+        # Create result publisher
         self.processed_result_publisher = rospy.Publisher(
             f'{rospy.get_name()}/processed_result',
             CommandData,
             queue_size=1
         )
 
+        # Create Subscriber to subscribe for the text
         self.recognized_text_subscriber = rospy.Subscriber(
             f'{rospy.get_name()}/recognized_text',
             String,
@@ -51,9 +54,30 @@ class ActionControllerNode(Node):
         self.acp_program = ActionController(node_id=self.name, config_file='./tests/ActionController/test.json')
         self.result = CommandData()
 
+        # Buffer of requests, as queue
+        self.buffer = []
+
+        # Status of the ActionController
+        self.is_running = False
+        rospy.set_param(f'{rospy.get_name}/is_running', self.is_running)
+
     def _callback(self, text: String):
-        self.result = self.acp_program.run(text.data, serialize=True)
-        self.processed_result_publisher.publish(self.result)
+        # Append text into buffer
+        self.buffer.append(text)
+        # If Node is not running
+        if not self.is_running:
+            self.is_running = True
+            # Pop buffer from queue
+            while len(self.buffer) > 0:
+                text = self.buffer.pop(0)
+                # Get caller from _connection_header
+                caller = text._connection_header['callerid']
+                rospy.loginfo(f'Processing request from {caller}')
+
+                # Run acp process and publish the result
+                self.result = self.acp_program.run(text.data, serialize=True)
+                self.processed_result_publisher.publish(self.result)
+            self.is_running = False
 
     def reset(self):
         self.result = CommandData()

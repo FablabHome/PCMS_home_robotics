@@ -69,25 +69,32 @@ class ActionController(NodeProgram):
             self._has_separately_keywords(text)
 
             if self.require_keywords_status and self.separately_keywords_status:
+                # Get response and action
                 self.response = configs['response']
                 self.action = configs['action']
 
-                rospy.loginfo(f'Text \'{text}\' matched, Meaning: {meaning}, reponse: {self.response}')
+                rospy.loginfo(f'Text \'{text}\' matched, Meaning: {meaning}, response: {self.response}')
 
+                # Get the command and args
                 command, args = self.action
                 command = join(self.action_commands, command)
 
                 command_status = subprocess.run([command, args], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+                # Decode the stdout
+                stdout = command_status.stdout.decode('ascii')
+                # Check the returncode
                 if command_status.returncode == 0:
-                    stdout = command_status.stdout.decode('ascii')
-                    rospy.loginfo(
-                        f'Process {command} has run successfully'
-                    )
+                    # Return code 0 means program executed successfully
+                    rospy.loginfo(f'Action {command} has run successfully')
                     if stdout != '':
-                        rospy.loginfo(f'stdou: {stdout}')
+                        rospy.loginfo(f'stdout: {stdout}')
+                else:
+                    # If status code is not 0, which means action stopped unexpectedly
+                    # Log the error
+                    rospy.logerr(f'Action failed with exit code {command_status.returncode}')
             else:
-                rospy.logwarn(f'Text \'{text}\' doesn\'t match anybody in the config file')
+                rospy.logerr(f'Text \'{text}\' doesn\'t match anybody in the config file')
 
             if serialize:
                 return self.serialize_output()
