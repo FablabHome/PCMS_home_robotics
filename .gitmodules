@@ -1,0 +1,6 @@
+[submodule "RCJ_pcms_core"]
+	path = RCJ_pcms_core
+	url = ./RCJ_pcms_core
+[submodule "home_robot_msgs"]
+	path = home_robot_msgs
+	url = ./home_robot_msgs/
