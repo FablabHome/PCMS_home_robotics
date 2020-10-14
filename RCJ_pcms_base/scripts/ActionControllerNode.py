@@ -51,7 +51,7 @@ class ActionControllerNode(Node):
             queue_size=1
         )
 
-        self.acp_program = ActionController(node_id=self.name, config_file='./tests/ActionController/test.json')
+        self.acp_program = ActionController(node_id=self.name, config_file='tests/Nodes/ActionController/test.json')
         self.result = CommandData()
 
         # Buffer of requests, as queue
