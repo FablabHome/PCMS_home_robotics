@@ -25,22 +25,28 @@ SOFTWARE.
 """
 
 from core.Detection import YOLOInput, YOLOProcess, YOLODetector
-from core.base_classes import NodeProgram
-
-from keras_yolo3_qqwweee.yolo import YOLO
+from .vision_abstract import VisionNodeProgram
 
 from home_robot_msgs.msg import ObjectBox, ObjectBoxes
 
+from keras_yolo3_qqwweee.yolo import YOLO
+from os import path
+import numpy as np
 
-class YOLODetection(NodeProgram):
+
+class YOLODetection(VisionNodeProgram):
     def __init__(
             self,
             node_id: str,
-            detector_entry: YOLO
     ):
         super(YOLODetection, self).__init__(node_id)
 
-        self.detector_entry = detector_entry
+        self.detector_entry = YOLO(
+            model_path=path.realpath('../models/YOLO/yolov3_416.h5'),
+            anchors_path=path.realpath('../model_data/YOLO/yolo_anchors.txt'),
+            classes_path=path.realpath('../model_data/YOLO/coco_classes.txt'),
+            font_path=path.realpath('../font/FiraMono-Medium.otf')
+        )
 
         self.image_processor = YOLOInput()
         self.outputs_processor = YOLOProcess()
@@ -54,11 +60,15 @@ class YOLODetection(NodeProgram):
         self.outputs = {}
 
         self.serialize_box = ObjectBox()
-        self.serialize_boxes = ObjectBoxes()
+        self.output_msg = ObjectBoxes
+        self.serialize_boxes = self.output_msg()
 
-    def run(self, image):
-        self.outputs = self.detector.detect(image)
-        return self.outputs
+    def run(self, input_data: np.array, serialize=True) -> dict:
+        self.outputs = result = self.detector.detect(input_data)
+        if serialize:
+            result = self.serialize_output()
+
+        return result
 
     def serialize_output(self) -> ObjectBoxes:
         self.serialize_boxes = ObjectBoxes()
