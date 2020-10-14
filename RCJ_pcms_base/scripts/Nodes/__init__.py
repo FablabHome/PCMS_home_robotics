@@ -1,3 +1,2 @@
-from .YOLODetection import YOLODetection
-from .PoseRecognition import PoseRecognition
+from Nodes.Visions.YOLODetection import YOLODetection
 from .ActionController import ActionController
