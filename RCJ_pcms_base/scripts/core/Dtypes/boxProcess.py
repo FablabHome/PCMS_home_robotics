@@ -25,11 +25,12 @@ SOFTWARE.
 
 """
 
-from home_robot_msgs.msg import ObjectBox
+from home_robot_msgs.msg import ObjectBox, ObjectBoxes
 
 from imutils.object_detection import non_max_suppression
 from math import sqrt
 from typing import List
+from itertools import zip_longest
 import cv2 as cv
 import numpy as np
 import dlib
@@ -116,11 +117,11 @@ class BBox:
 
     def __init__(
             self,
-            x1: int,
-            y1: int,
-            x2: int,
-            y2: int,
-            coordinates: None or dict,
+            x1: int = 0,
+            y1: int = 0,
+            x2: int = 0,
+            y2: int = 0,
+            coordinates: dict = None,
             label: str = '',
             model: str = '',
             score: float = 0.0,
@@ -166,9 +167,9 @@ class BBox:
         self.serialize_msg = ObjectBox()
 
     def __repr__(self):
-        return '{} at {}, label={}, pos=(x1={}, y1={}, x2={}, y2={}), centroid={}, area={}>'.format(
+        return '{} at {}, {}, pos=(x1={}, y1={}, x2={}, y2={}), centroid={}, area={}>'.format(
             self.__class__, hex(id(self)),
-            self.label,
+            f'label: {self.label}' if self.label is not '' else 'no label',
             self.x1,
             self.y1,
             self.x2,
@@ -266,22 +267,28 @@ class BBox:
         return self.serialize_msg
 
 
+get_pos_from_object_box = np.vectorize(lambda box: (box.x1, box.y1, box.x2, box.y2, box.label))
+
+
 def filterBoxes(out_boxes, min_area):
     out_boxes = filter(lambda x: x.area >= min_area, out_boxes)
     return list(out_boxes)
 
 
 def posToBBox(out_boxes, labels=None, padding=None, shape=None):
+    if labels is None:
+        labels = []
     after_bboxing = []
-    for idx, (x1, y1, x2, y2) in enumerate(out_boxes):
+    out_boxes_combined = list(zip_longest(out_boxes, labels, fillvalue=''))
+
+    for box, label in out_boxes_combined:
+        x1, y1, x2, y2 = box
         after_bboxing.append(BBox(
-            {
-                'x1': x1,
-                'y1': y1,
-                'x2': x2,
-                'y2': y2
-            },
-            labels[idx] if labels is not None else labels,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
+            label=label,
             padding=padding, shape=shape
         ))
 
@@ -301,6 +308,20 @@ def dlibToBBox(out_boxes: List[dlib.rectangle], padding=None, shape=None):
         )
 
     return after_bboxing
+
+
+def deserialize_ros_to_bbox(object_boxes: ObjectBoxes):
+    if len(object_boxes.boxes) == 0:
+        return []
+
+    boxes_data = get_pos_from_object_box(object_boxes.boxes)
+    boxes_data = np.array(boxes_data)
+    boxes_data = np.transpose(boxes_data)
+
+    poses = boxes_data[:, :4]
+    labels = boxes_data[:, -1]
+
+    return posToBBox(out_boxes=poses.astype(int), labels=labels)
 
 
 def BBoxToPos(out_boxes):
