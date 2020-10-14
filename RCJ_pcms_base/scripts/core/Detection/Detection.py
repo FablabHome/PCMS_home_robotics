@@ -25,7 +25,7 @@ SOFTWARE.
 """
 
 from ..base_classes import *
-from ..Dtypes import BBox, posToBBox
+from ..Dtypes import BBox, posToBBox, PoseGesture
 from ..tools import OpenPose
 
 from PIL import Image
@@ -36,7 +36,7 @@ import numpy as np
 import cv2 as cv
 import os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 opts = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.2)
 cfgs = tf.compat.v1.ConfigProto(gpu_options=opts)
 sess = tf.compat.v1.Session(config=cfgs)
@@ -58,7 +58,7 @@ class YOLOProcess(Outputs):
 
         outputs = {
             'box_count': box_count,
-            'out_boxes': posToBBox(predicted_classes, out_boxes),
+            'out_boxes': posToBBox(out_boxes=out_boxes, labels=predicted_classes),
         }
         return outputs
 
@@ -68,105 +68,13 @@ class PoseRecognitionInput(ModelInput):
         self.padding = padding
         self.image_shape = image_shape
 
-        self.pairs = (
-            (1, 0),
-            (1, 2), (2, 3), (3, 4),
-            (1, 5), (5, 6), (6, 7),
-            (1, 8), (8, 9), (9, 10),
-            (1, 11), (11, 12), (12, 13),
-            (0, 14), (14, 16),
-            (0, 15), (15, 17)
-        )
-
-        self.colors = (
-            (1, 255, 1),
-            (1, 255, 255), (128, 128, 255), (196, 196, 1),
-            (255, 1, 255), (255, 128, 128), (1, 196, 196),
-            (1, 1, 255), (255, 255, 1), (1, 140, 140),
-            (255, 1, 1), (1, 128, 255), (140, 1, 140),
-            (196, 1, 196), (128, 1, 128),
-            (1, 196, 1), (1, 128, 1)
-        )
-
-    def draw(self, image, one_person_points, thickness=2):
-        for i, pair in enumerate(self.pairs):
-            x1 = one_person_points[pair[0]][0]
-            y1 = one_person_points[pair[0]][1]
-            x2 = one_person_points[pair[1]][0]
-            y2 = one_person_points[pair[1]][1]
-            if x1 == -1 or y1 == -1 or x2 == -1 or y2 == -1:
-                continue
-            cv.line(image, (x1, y1), (x2, y2), self.colors[i], thickness)
-
     def preprocess_to(self, input_data: np.array) -> (BBox, np.array):
-        one_person_points = input_data
+        one_person_points = PoseGesture(pose_points=input_data)
 
-        array_x = []
-        array_y = []
+        black_board = one_person_points.to_black_board()
+        pose_box = one_person_points.to_box()
 
-        for i in range(18):
-            num_x = one_person_points[i][0]
-            num_y = one_person_points[i][1]
-
-            if num_x and num_y > 0:
-                array_x.append(num_x)
-                array_y.append(num_y)
-
-        new_data = []
-        x1 = min(array_x)
-        y1 = min(array_y)
-        x2 = max(array_x)
-        y2 = max(array_y)
-
-        pose_box = posToBBox(
-            out_boxes=[[x1, y1, x2, y2]],
-            padding=self.padding, shape=self.image_shape
-        )[0].padding_box
-
-        for j in range(18):
-            num_x = one_person_points[j][0]
-            num_y = one_person_points[j][1]
-
-            if num_x and num_y > 0:
-                num_x = num_x - x1
-                num_y = num_y - y1
-                new_data.append((num_x, num_y))
-            else:
-                num_x = -1
-                num_y = -1
-                new_data.append((num_x, num_y))
-
-        height = y2 - y1
-        width = x2 - x1
-
-        image = np.zeros((height, width, 3), np.uint8)
-
-        new_image = np.zeros((100, 100, 3), np.uint8)
-        self.draw(image, new_data)
-
-        n_w = 100
-        n_h = 100
-
-        if image.shape[1] > image.shape[0]:
-            n_h = int(image.shape[0] * n_w / image.shape[1])
-        else:
-            if image.shape[0] == 0:
-                return None
-
-            n_w = int(image.shape[1] * n_h / image.shape[0])
-
-        if n_w == 0 or n_h == 0:
-            return None
-
-        ox = int((100 - n_w) / 2)
-        oy = int((100 - n_h) / 2)
-
-        # print(oy, oy+n_h, ox, ox+n_w)
-
-        image = cv.resize(image, (n_w, n_h))
-        new_image[oy:n_h + oy, ox:n_w + ox, :] = image[0:image.shape[0], 0:image.shape[1], :]
-
-        return pose_box, np.array([new_image])
+        return pose_box, black_board
 
     def rollback(self, blob) -> np.array:
         pass
@@ -196,6 +104,12 @@ class PoseRecognitionProcess(Outputs):
 
 
 class YOLODetector(Detector):
+    def _input_process(self, input_data) -> Any:
+        pass
+
+    def _output_process(self) -> Any:
+        pass
+
     def __init__(
             self,
             detector: YOLO,
