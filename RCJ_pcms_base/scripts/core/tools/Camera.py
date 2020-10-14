@@ -74,22 +74,22 @@ class Camera:
             self.cameras = {
                 self.rgb_topic: {
                     'data_class': Image,
-                    'callback': self.rgb_callback,
+                    'callback': self._rgb_callback,
                     'open': next(self.require_cameras_iterator)
                 },
                 self.rgb_compress_topic: {
                     'data_class': CompressedImage,
-                    'callback': self.rgb_compress_callback,
+                    'callback': self._rgb_compress_callback,
                     'open': next(self.require_cameras_iterator)
                 },
                 self.depth_topic: {
                     'data_class': Image,
-                    'callback': self.depth_callback,
+                    'callback': self._depth_callback,
                     'open': next(self.require_cameras_iterator)
                 },
                 self.depth_compress_topic: {
                     'data_class': CompressedImage,
-                    'callback': self.depth_compress_callback,
+                    'callback': self._depth_compress_callback,
                     'open': next(self.require_cameras_iterator)
                 }
             }
@@ -113,18 +113,18 @@ class Camera:
     def __call__(self, image_id='rgb_compress'):
         return self.image_ids[image_id]
 
-    def rgb_callback(self, msg: Image):
+    def _rgb_callback(self, msg: Image):
         self.rgb_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         self.image_ids['rgb'] = self.rgb_image
 
-    def rgb_compress_callback(self, msg: CompressedImage):
+    def _rgb_compress_callback(self, msg: CompressedImage):
         self.rgb_compress_image = self.bridge.compressed_imgmsg_to_cv2(msg)
         self.image_ids['rgb_compress'] = self.rgb_compress_image
 
-    def depth_callback(self, msg: Image):
+    def _depth_callback(self, msg: Image):
         self.depth_image = self.bridge.imgmsg_to_cv2(msg)
         self.image_ids['depth'] = self.depth_image
 
-    def depth_compress_callback(self, msg: CompressedImage):
+    def _depth_compress_callback(self, msg: CompressedImage):
         self.depth_compress_image = self.bridge.compressed_imgmsg_to_cv2(msg)
         self.image_ids['depth_compress'] = self.depth_compress_image
