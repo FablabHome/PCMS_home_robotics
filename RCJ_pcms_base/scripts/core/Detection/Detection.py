@@ -74,6 +74,8 @@ class PoseRecognitionInput(ModelInput):
         black_board = one_person_points.to_black_board()
         pose_box = one_person_points.to_box()
 
+        pose_box = posToBBox([pose_box])[0]
+
         return pose_box, black_board
 
     def rollback(self, blob) -> np.array:
@@ -159,14 +161,14 @@ class PoseRecognitionDetector(Detector):
     ):
         super(PoseRecognitionDetector, self).__init__(detector, image_processor, output_processor, need_blob)
 
-    def detect(self, image: np.array) -> BBox:
+    def detect(self, image: np.array):
         result = self.image_processor.preprocess_to(image)
         if result is not None:
             pose_box, self.blob = result
         else:
-            return None
+            return
 
-        predicts = self.detector.predict(self.blob)
+        predicts = self.detector.predict(np.array([self.blob / 255.0]))
 
         status, confidence = self.output_processor.process_outputs(predicts)
 
