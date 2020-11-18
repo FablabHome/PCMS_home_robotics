@@ -16,7 +16,7 @@ from os import path
 import pandas as pd
 
 # Get base directory
-base = './'
+base = path.split(path.realpath(__file__))[0]
 
 # Initialize OpenPose detector
 # TODO: Pack detecting steps into classes
@@ -28,10 +28,10 @@ pose_detector = OpenPose(
 logging.basicConfig(filename='app.log', filemode='a', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 # Database path
-database = path.join(base, '../../../../datasets/dataset_pose/sit')
+database = '/home/root_walker/workspace/datasets/dataset_pose_test/'
 
 # Dataframe CSV path
-csv_path = path.join(database, 'dataset.csv')
+csv_path = '/home/root_walker/workspace/datasets/dataset_pose_test/dataset.csv'
 df = pd.read_csv(csv_path)
 
 # Getting line data
@@ -48,12 +48,12 @@ count = 0
 # TODO: Find a way to process the depth points data
 for rgb, depth, one_person_points_data, label in zip(rgbs, depths, points_data, labels):
     try:
-        onlypose_path = path.join(database, 'onlypose')
+        onlypose_path = path.join(database, label, 'onlypose')
         if not path.exists(onlypose_path): os.mkdir(onlypose_path)
 
         # Get rgb and depth image paths
-        rgb_img_name = path.join(database, 'rgb', rgb)
-        depth_img_name = path.join(database, 'depth', depth)
+        rgb_img_name = path.join(database, label, 'rgb', rgb)
+        depth_img_name = path.join(database, label, 'depth', depth)
 
         # Load depth and rgb images
         rgb_image = cv.imread(rgb_img_name)
