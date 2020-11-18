@@ -23,3 +23,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 """
+from abc import ABC
+from typing import Dict
+
+from core.Dtypes import BBox
+
+
+class FollowerStateInfo:
+    def __init__(self, **kwargs):
+        pass
+
+
+class FollowerState(ABC):
+    def __init__(self, state_info: FollowerStateInfo):
+        self.state_info = state_info
+
+
+class LossTarget(ABC):
+    def __init__(self, last_exists: BBox, dists_between_last_exists: Dict[BBox, float]):
+        self.last_exists = last_exists
+        self.dists_between_last_exists = dists_between_last_exists
