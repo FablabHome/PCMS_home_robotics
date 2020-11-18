@@ -31,6 +31,8 @@ from home_robot_msgs.srv import VisionDeregister, VisionDeregisterRequest, Visio
 from cv_bridge import CvBridge
 import rospy
 
+import threading
+
 
 class VisionControllerNode(Node):
     def __init__(self, name: str = 'VC', anonymous: bool = False):
@@ -67,6 +69,9 @@ class VisionControllerNode(Node):
         # Client private topics with the publishers
         self.address_publishers = {}
 
+        # Initialize the lock
+        self.mutex = threading.RLock()
+
     def _deregister_handler(self, req: VisionDeregisterRequest):
         try:
             # Delete the private address
@@ -89,7 +94,9 @@ class VisionControllerNode(Node):
 
         """
         # Save client's request
-        self.requests.append(client_request)
+        with self.mutex:
+            self.requests.append(client_request)
+
         if not self._is_running:  # If the loop isn't running
             # Set it is running
             self._is_running = True
