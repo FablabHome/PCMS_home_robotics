@@ -1,6 +1,6 @@
 import rospy
 
-from Nodes import ActionController
+from core.Nodes import ActionController
 
 rospy.init_node('test_acp')
 acp = ActionController(node_id='acp', config_file='/tmp/test.json')

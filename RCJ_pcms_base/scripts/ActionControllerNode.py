@@ -24,7 +24,7 @@ SOFTWARE.
 """
 
 from core.base_classes import Node
-from Nodes import ActionController
+from core.Nodes import ActionController
 
 from std_msgs.msg import String
 from home_robot_msgs.msg import CommandData

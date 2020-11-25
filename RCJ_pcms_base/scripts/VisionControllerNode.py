@@ -23,8 +23,8 @@ SOFTWARE.
 """
 
 from core.base_classes import Node
-from Nodes.Visions import YOLODetection
-from Nodes.Visions import vision_abstract
+from core.Nodes import YOLODetection
+from core.Nodes.Visions import vision_abstract
 
 from home_robot_msgs.msg import VisionRequest
 from home_robot_msgs.srv import VisionDeregister, VisionDeregisterRequest, VisionDeregisterResponse
