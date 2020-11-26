@@ -3,6 +3,7 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/RCJ_pcms_core" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/RCJ_pcms_roboClient" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/home_robot_msgs" vcs="Git" />
   </component>
 </project>
