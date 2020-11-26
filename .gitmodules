@@ -4,3 +4,6 @@
 [submodule "home_robot_msgs"]
 	path = home_robot_msgs
 	url = https://github.com/rootadminWalker/home_robot_msgs.git
+[submodule "RCJ_pcms_roboClient"]
+	path = RCJ_pcms_roboClient
+	url = https://github.com/rootadminWalker/RCJ_pcms_roboClient.git
