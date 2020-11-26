@@ -55,7 +55,7 @@ openpose_model_path = path.join(
 )
 
 openpose_prototxt_path = path.join(
-    base, '../model_data/OpenPose/pose_deploy_linevec.prototxt'
+    base, '../../model_data/OpenPose/pose_deploy_linevec.prototxt'
 )
 
 face_bin_path = path.join(
@@ -79,7 +79,7 @@ print('loading_model')
 pose_recognize_model = load_model(pose_recognizer)
 print('model lodaded')
 label = []
-f = open(path.join(base, '../model_data/PoseDetection/model.txt'))
+f = open(path.join(base, '../../model_data/PoseDetection/model.txt'))
 for line in f.readlines():
     label.append(line.strip())
 f.close()

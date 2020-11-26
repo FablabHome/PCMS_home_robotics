@@ -16,7 +16,7 @@ openpose_model_path = path.relpath(
 )
 
 openpose_prototxt_path = path.realpath(
-    '../model_data/OpenPose/pose_deploy_linevec.prototxt'
+    '../../model_data/OpenPose/pose_deploy_linevec.prototxt'
 )
 
 pose = OpenPose(model_path=openpose_model_path, proto_path=openpose_prototxt_path)
@@ -28,7 +28,7 @@ print('loading_model')
 pose_recognize_model = load_model(path.relpath("../models/PoseDetection/model_0611.h5"))
 print('model lodaded')
 label = []
-f = open(path.relpath("../model_data/PoseDetection/model.txt"))
+f = open(path.relpath("../../model_data/PoseDetection/model.txt"))
 for line in f.readlines():
     label.append(line.strip())
 f.close()

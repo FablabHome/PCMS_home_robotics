@@ -22,7 +22,7 @@ base = path.split(path.realpath(__file__))[0]
 # TODO: Pack detecting steps into classes
 pose_detector = OpenPose(
     path.join(base, '../../../models/OpenPose/pose_iter_440000.caffemodel'),
-    path.join(base, '../../../model_data/OpenPose/pose_deploy_linevec.prototxt')
+    path.join(base, '../../../../model_data/OpenPose/pose_deploy_linevec.prototxt')
 )
 
 logging.basicConfig(filename='app.log', filemode='a', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')

@@ -14,7 +14,7 @@ dataset_path = os.path.join(base, '../../../../datasets/dataset_pose')
 
 pose_detector = OpenPose(
     os.path.join(base, '../../../models/OpenPose/pose_iter_440000.caffemodel'),
-    os.path.join(base, '../../../model_data/OpenPose/pose_deploy_linevec.prototxt')
+    os.path.join(base, '../../../../model_data/OpenPose/pose_deploy_linevec.prototxt')
 )
 
 csv_data = {}
