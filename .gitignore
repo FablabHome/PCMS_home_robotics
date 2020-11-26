@@ -130,3 +130,4 @@ dmypy.json
 /RCJ_pcms_base/models/
 /RCJ_pcms_base/scripts/test.py
 /datasets/
+/models/
