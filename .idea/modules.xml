@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/PCMS_home_robotics.iml" filepath="$PROJECT_DIR$/.idea/PCMS_home_robotics.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../RCJ_pcms_roboClient/.idea/RCJ_pcms_roboClient.iml" filepath="$PROJECT_DIR$/../RCJ_pcms_roboClient/.idea/RCJ_pcms_roboClient.iml" />
     </modules>
   </component>
 </project>
