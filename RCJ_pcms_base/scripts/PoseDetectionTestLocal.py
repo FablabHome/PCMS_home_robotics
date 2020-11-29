@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-from std_msgs.msg import String
 
 from core.Detection import PoseDetector, PoseRecognitionInput, PoseRecognitionProcess, PoseRecognitionDetector
 
-from core.tools import OpenPose, Camera
+from core.tools import OpenPose
 import cv2 as cv
 from tensorflow.keras.models import load_model
 from os import path

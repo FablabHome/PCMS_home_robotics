@@ -1,4 +1,4 @@
-from core.Nodes import YOLODetection
+from core.Nodes.Visions import YOLODetection
 import cv2 as cv
 
 cap = cv.VideoCapture(0)
