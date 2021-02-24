@@ -19,7 +19,7 @@ from core.Detection.YOLODetection import DetectBox
 class YOLODetectionNode:
     def __init__(self, net_yolo: cv2.dnn_Net):
         self.cam_sub = rospy.Subscriber(
-            '/image_raw',
+            '/camera/rgb/image_raw',
             Image,
             self.image_callback,
             queue_size=1
