@@ -37,7 +37,7 @@ class PersonFollower:
         # rospy.Service('pf_initialize', PFInitializer, self.initialized_cb)
         self.person_extractor = person_extractor
         self.target_box = None
-        self.depth_image = None
+        self.rgb_image = self.depth_image = None
         self.bridge = CvBridge()
 
         self.forward_controller = PIDController(
@@ -90,6 +90,8 @@ class PersonFollower:
         PersonFollower.H = detections.source_img.height
         PersonFollower.W = detections.source_img.width
         max_distance = 0
+
+        self.rgb_image = self.bridge.imgmsg_to_cv2(detection_boxes.source_img, 'bgr8')
         for det_box in detection_boxes:
             source_img = self.bridge.imgmsg_to_cv2(det_box.source_img, 'bgr8')
             if det_box.label != 'person':
@@ -101,6 +103,9 @@ class PersonFollower:
             if max_distance < distance_between_centroid < 30:
                 max_distance = distance_between_centroid
                 self.target_box = person_box
+
+        self.target_box.draw(self.rgb_image, (32, 0, 255))
+        self.target_box.draw_centroid(self.rgb_image, (32, 0, 255), 5)
 
         x = self.target_box.x1
         centroid_x = PersonFollower.CENTROID[0]
@@ -142,3 +147,6 @@ if __name__ == '__main__':
         twist.linear.x = forward_speed
         twist.angular.z = turn_speed
         node.twist_publisher.publish(twist)
+
+        cv.imshow('frame', node.rgb_image)
+        cv.waitKey(16)
