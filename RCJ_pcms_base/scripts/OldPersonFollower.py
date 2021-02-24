@@ -21,6 +21,7 @@ def rgb_callback(image: Image):
 
 rospy.init_node("home_edu_object_track", anonymous=True)
 rate = rospy.Rate(20)
+bridge = CvBridge()
 
 rospy.Subscriber(
     '/camera/depth/image_raw',
@@ -94,13 +95,14 @@ Dist = 0.0
 
 mask = genderate_mask(size)
 depth = rgb = None
-bridge = CvBridge()
 
 cv.namedWindow("frame")
 
 while not rospy.is_shutdown():
+    if depth is None or rgb is None:
+        continue
     twist = Twist()
-    frame = depth[(480 / 5):(480 / 5 * 3), (640 / 5):(640 / 5 * 4)].copy()
+    frame = depth[(480 // 5):(480 // 5 * 3), (640 // 5):(640 // 5 * 4)].copy()
 
     blurred_frame = cv.GaussianBlur(rgb, (5, 5), 0)
 
@@ -139,7 +141,7 @@ while not rospy.is_shutdown():
             else:
                 pass
 
-        minLoc = (most_center_point[0] + (640 / 5), most_center_point[1])
+        minLoc = (most_center_point[0] + (640 // 5), most_center_point[1])
 
         error = (val - horizan)
 
@@ -159,6 +161,7 @@ while not rospy.is_shutdown():
         chassis_pub.publish(twist)
         print("Darkness point: %s, Location: %s, Distance: %s, Speed: %s, Turn: %s, To center: %s, error: %s" % (val, minLoc, val, forward_speed, turn_speed, Dist, error))
 
+        print(minLoc)
         cv.circle(rgb, minLoc, 60, (0, 255, 0), 2)
         cv.circle(rgb, minLoc, 6, (0, 255, 255), 2)
 
