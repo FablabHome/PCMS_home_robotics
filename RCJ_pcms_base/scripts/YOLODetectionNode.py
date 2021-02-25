@@ -25,6 +25,12 @@ class YOLODetectionNode:
             queue_size=1
         )
 
+        self.test_pub = rospy.Publisher(
+            '~pub',
+            Image,
+            queue_size=1
+        )
+
         self.change_request = rospy.Service(
             '~change_camera',
             ChangeImgSource,
@@ -50,10 +56,11 @@ class YOLODetectionNode:
             crop=False
         )
 
-        self.net_yolo.setInput(blob)
-        outputs = self.net_yolo.forward()
+        # self.net_yolo.setInput(blob)
+        # outputs = self.net_yolo.forward()
 
-        self.objects = DetectBox.parse_output(outputs, W, H)
+        # self.objects = DetectBox.parse_output(outputs, W, H)
+        self.objects = []
         self.source_image = input_image
 
     def change_camera(self, new_cam_topic: ChangeImgSourceRequest):
@@ -93,7 +100,7 @@ if __name__ == "__main__":
     boxes = ObjectBoxes()
 
     node = YOLODetectionNode(net_yolo=_net)
-    rate = rospy.Rate(30)
+    rate = rospy.Rate(10)
 
     pub = rospy.Publisher(
         '~boxes',
@@ -125,12 +132,14 @@ if __name__ == "__main__":
             box_image = source_image[box.y1:box.y2, box.x1:box.x2].copy()
 
             # Serialize the image
-            serialized_image = node.bridge.cv2_to_imgmsg(box_image)
+            serialized_image = node.bridge.cv2_to_imgmsg(box_image, encoding='bgr8')
             box.source_img = serialized_image
 
             box_items.append(box)
 
         boxes.boxes = box_items
-        boxes.source_img = node.bridge.cv2_to_imgmsg(source_image)
+        boxes_source_img = node.bridge.cv2_to_imgmsg(source_image, encoding='bgr8')
+        boxes.source_img = boxes_source_img
+        node.test_pub.publish(boxes_source_img)
         pub.publish(boxes)
-        rate.sleep()
+        # rate.sleep()

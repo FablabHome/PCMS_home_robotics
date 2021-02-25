@@ -84,14 +84,13 @@ class PersonFollower:
         self.depth_image = self.bridge.imgmsg_to_cv2(depth)
 
     def box_callback(self, detections: ObjectBoxes):
-        rospy.loginfo('hei')
         detection_boxes = detections.boxes
 
         PersonFollower.H = detections.source_img.height
         PersonFollower.W = detections.source_img.width
         max_distance = 0
 
-        self.rgb_image = self.bridge.imgmsg_to_cv2(detection_boxes.source_img, 'bgr8')
+        self.rgb_image = self.bridge.imgmsg_to_cv2(detections.source_img, 'bgr8')
         for det_box in detection_boxes:
             source_img = self.bridge.imgmsg_to_cv2(det_box.source_img, 'bgr8')
             if det_box.label != 'person':
@@ -103,6 +102,9 @@ class PersonFollower:
             if max_distance < distance_between_centroid < 30:
                 max_distance = distance_between_centroid
                 self.target_box = person_box
+
+        if self.target_box is None:
+            return
 
         self.target_box.draw(self.rgb_image, (32, 0, 255))
         self.target_box.draw_centroid(self.rgb_image, (32, 0, 255), 5)
@@ -148,5 +150,8 @@ if __name__ == '__main__':
         twist.angular.z = turn_speed
         node.twist_publisher.publish(twist)
 
+        if node.rgb_image is None:
+            continue
+
         cv.imshow('frame', node.rgb_image)
-        cv.waitKey(16)
+        cv.waitKey(1)
