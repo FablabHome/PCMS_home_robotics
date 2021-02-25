@@ -148,5 +148,8 @@ if __name__ == '__main__':
         twist.angular.z = turn_speed
         node.twist_publisher.publish(twist)
 
+        if node.rgb_image is None:
+            continue
+
         cv.imshow('frame', node.rgb_image)
-        cv.waitKey(16)
+        cv.waitKey(1)
