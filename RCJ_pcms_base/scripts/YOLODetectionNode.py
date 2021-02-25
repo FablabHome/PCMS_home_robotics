@@ -125,12 +125,12 @@ if __name__ == "__main__":
             box_image = source_image[box.y1:box.y2, box.x1:box.x2].copy()
 
             # Serialize the image
-            serialized_image = node.bridge.cv2_to_imgmsg(box_image)
+            serialized_image = node.bridge.cv2_to_imgmsg(box_image, 'bgr8')
             box.source_img = serialized_image
 
             box_items.append(box)
 
         boxes.boxes = box_items
-        boxes.source_img = node.bridge.cv2_to_imgmsg(source_image)
+        boxes.source_img = node.bridge.cv2_to_imgmsg(source_image, 'bgr8')
         pub.publish(boxes)
         rate.sleep()
