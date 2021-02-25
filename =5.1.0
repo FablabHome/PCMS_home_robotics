@@ -1,5 +1,0 @@
-Requirement already satisfied: imutils in /usr/local/lib/python3.6/dist-packages
-Requirement already satisfied: pyttsx3==2.71 in /usr/local/lib/python3.6/dist-packages
-Requirement already satisfied: dataclasses in /usr/local/lib/python3.6/dist-packages
-Requirement already satisfied: matplotlib in /usr/lib/python3/dist-packages
-Requirement already satisfied: Pillow in /usr/lib/python3/dist-packages
