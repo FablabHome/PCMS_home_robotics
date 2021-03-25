@@ -55,8 +55,7 @@ def genderate_mask(size):
     return mask
 
 
-def calc_kp(x1, y1, kp):
-    error = (x1 - y1)
+def calc_kp(error, kp):
     return error * kp
 
 
@@ -67,7 +66,10 @@ def calc_ph(x, y, center_point):
 
 # Kps for turning and forward
 p1 = 1.0 / 900.0
-turn_p = -(1.0 / 150.0)
+turn_p = -(1.0 / 350.0)
+
+d1 = 1.00 / 500.0
+turn_d = -(1.0 / 250)
 
 # The nearest distance for the robot between the operator
 horizan = 595
@@ -92,6 +94,8 @@ min = np.array([0, 48, 80], np.uint8)
 max = np.array([18, 255, 255], np.uint8)
 
 Dist = 0.0
+last_forward_error = 0
+last_turn_error = 0
 
 mask = genderate_mask(size)
 depth = rgb = None
@@ -143,15 +147,19 @@ while not rospy.is_shutdown():
 
         minLoc = (most_center_point[0] + (640 // 5), most_center_point[1])
 
-        error = (val - horizan)
+        forward_error = (val - horizan)
+        forward_delta_error = forward_error - last_forward_error
+
+        turn_error = minLoc[0] - center_x
+        turn_delta_error = turn_error - last_turn_error
 
         notzero = len(nonzeros[0])
 
         if val < 1300 or (len(frame) - notzero > notzero):
-            forward_speed = calc_kp(val, horizan, p1)
+            forward_speed = calc_kp(forward_error, p1) + calc_kp(forward_delta_error, d1)
 
             if not minLoc[0] == 0:
-                turn_speed = calc_kp(minLoc[0], center_x, turn_p)
+                turn_speed = calc_kp(turn_error, turn_p) + calc_kp(turn_delta_error, turn_d)
         else:
             forward_speed = 0
             turn_speed = 0
@@ -159,11 +167,14 @@ while not rospy.is_shutdown():
         twist.linear.x = forward_speed
         twist.angular.z = turn_speed
         chassis_pub.publish(twist)
-        print("Darkness point: %s, Location: %s, Distance: %s, Speed: %s, Turn: %s, To center: %s, error: %s" % (val, minLoc, val, forward_speed, turn_speed, Dist, error))
+        print("Darkness point: %s, Location: %s, Distance: %s, Speed: %s, Turn: %s, To center: %s, error: %s" % (val, minLoc, val, forward_speed, turn_speed, Dist, forward_error))
 
         print(minLoc)
         cv.circle(rgb, minLoc, 60, (0, 255, 0), 2)
         cv.circle(rgb, minLoc, 6, (0, 255, 255), 2)
+
+        last_forward_error = forward_error
+        last_turn_error = turn_error
 
     cv.imshow("frame", rgb)
     cv.imshow("depth", frame)
