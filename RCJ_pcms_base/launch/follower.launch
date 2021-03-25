@@ -1,0 +1,23 @@
+<launch>
+    <node
+        name="YD"
+        pkg="rcj_pcms_base"
+        type="YOLODetectionNode.py"
+        required="true"
+        output="screen"
+    />
+    <node
+        name="pf_initializer"
+        pkg="rcj_pcms_base"
+        type="PFInitializer.py"
+        required="true"
+        output="screen"
+    />
+    <node
+        name="person_follower"
+        pkg="rcj_pcms_base"
+        type="PersonFollower.py"
+        required="true"
+        output="screen"
+    />
+</launch>
