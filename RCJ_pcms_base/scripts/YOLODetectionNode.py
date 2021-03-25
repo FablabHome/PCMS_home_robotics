@@ -2,25 +2,26 @@
 
 import os
 
-import cv2
-import numpy as np
-# https://github.com/PINTO0309/OpenVINO-YoloV3
-# https://docs.openvinotoolkit.org/latest/omz_models_public_yolo_v3_tf_yolo_v3_tf.html
 import rospy
+import sensor_msgs.msg
+from PIL import Image
 from cv_bridge import CvBridge
-from rospkg import RosPack
-from sensor_msgs.msg import Image
 from home_robot_msgs.msg import ObjectBox, ObjectBoxes
 from home_robot_msgs.srv import ChangeImgSource, ChangeImgSourceResponse, ChangeImgSourceRequest
+from keras_yolo3.yolo import YOLO_np
+from rospkg import RosPack
 
 from core.Detection.YOLODetection import DetectBox
 
 
 class YOLODetectionNode:
-    def __init__(self, net_yolo: cv2.dnn_Net):
+    W = 640
+    H = 480
+
+    def __init__(self):
         self.cam_sub = rospy.Subscriber(
-            '/camera/rgb/image_raw',
-            Image,
+            '/camera/rgb/image_raw/compressed',
+            sensor_msgs.msg.CompressedImage,
             self.image_callback,
             queue_size=1
         )
@@ -31,30 +32,25 @@ class YOLODetectionNode:
             self.change_camera
         )
 
-        self.net_yolo = net_yolo
         self.bridge = CvBridge()
 
         self.objects: [DetectBox] = []
-        self.source_image: np.array = None
+        self.source_image = self.blob = None
 
-    def image_callback(self, image: Image):
-        input_image = self.bridge.imgmsg_to_cv2(image)
+    def image_callback(self, image: sensor_msgs.msg.CompressedImage):
+        input_image = self.bridge.compressed_imgmsg_to_cv2(image)
         H, W, _ = input_image.shape
 
-        blob = cv2.dnn.blobFromImage(
-            input_image,
-            size=(DetectBox.IMG_W, DetectBox.IMG_H),
-            scalefactor=1.0,
-            mean=(0, 0, 0),
-            swapRB=False,
-            crop=False
-        )
+        YOLODetectionNode.H = H
+        YOLODetectionNode.W = W
 
-        self.net_yolo.setInput(blob)
-        outputs = self.net_yolo.forward()
-
-        self.objects = DetectBox.parse_output(outputs, W, H)
         self.source_image = input_image
+        self.blob = Image.fromarray(input_image)
+
+        # self.net_yolo.setInput(blob)
+        # outputs = self.net_yolo.forward()
+
+        # self.objects = DetectBox.parse_output(outputs, W, H)
 
     def change_camera(self, new_cam_topic: ChangeImgSourceRequest):
         self.cam_sub.unregister()
@@ -79,20 +75,25 @@ class YOLODetectionNode:
 
 if __name__ == "__main__":
     rospy.init_node('YD')
-
-    DetectBox.SIDE = 13
     base = RosPack().get_path('rcj_pcms_base') + '/..'
-    _model_xml = os.path.join(base, 'models/YOLO/yolov3.xml')
-    _model_bin = os.path.join(base, 'models/YOLO/yolov3.bin')
-    _net = cv2.dnn.readNetFromModelOptimizer(_model_xml, _model_bin)
-    _net.setPreferableBackend(cv2.dnn.DNN_BACKEND_INFERENCE_ENGINE)
-    _net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+    _model_h5 = os.path.join(base, 'models/YOLO/yolov3.h5')
+    _coco_classes = os.path.join(base, 'models/YOLO/coco_classes.txt')
+    _anchors = os.path.join(base, 'models/YOLO/yolo3_anchors.txt')
+    _model = YOLO_np(
+        model_type='yolo3_darknet',
+        yolo_weights_path='',
+        weights_path=_model_h5,
+        anchors_path=_anchors,
+        classes_path=_coco_classes
+    )
+
+    classnames = open(_coco_classes).readlines()
 
     box = ObjectBox()
 
     boxes = ObjectBoxes()
 
-    node = YOLODetectionNode(net_yolo=_net)
+    node = YOLODetectionNode()
     rate = rospy.Rate(30)
 
     pub = rospy.Publisher(
@@ -105,32 +106,38 @@ if __name__ == "__main__":
         box_items = []
         boxes = ObjectBoxes()
         # Get objects and source images
-        objects = node.objects
+        # objects = node.objects
+        blob = node.blob
         source_image = node.source_image
 
-        if source_image is None:
+        if source_image is None or blob is None:
             continue
 
-        for obj in objects:
+        _, out_boxes, out_classes, out_scores = _model.detect_image(blob)
+
+        for obj, label, score in zip(out_boxes, out_classes, out_scores):
+            x1, y1, x2, y2 = obj
             box = ObjectBox()
             # Input box data
             box.model = 'yolo'
-            box.x1 = obj.x_min
-            box.y1 = obj.y_min
-            box.x2 = obj.x_max
-            box.y2 = obj.y_max
-            box.score = obj.confidence
-            box.label = str(obj.class_id)
+            box.x1 = x1
+            box.y1 = y1
+            box.x2 = x2
+            box.y2 = y2
+            box.score = score
+            box.label = classnames[label]
 
             box_image = source_image[box.y1:box.y2, box.x1:box.x2].copy()
 
             # Serialize the image
-            serialized_image = node.bridge.cv2_to_imgmsg(box_image, 'bgr8')
+            serialized_image = node.bridge.cv2_to_compressed_imgmsg(box_image)
             box.source_img = serialized_image
 
             box_items.append(box)
 
         boxes.boxes = box_items
-        boxes.source_img = node.bridge.cv2_to_imgmsg(source_image, 'bgr8')
+        boxes.source_img = node.bridge.cv2_to_compressed_imgmsg(source_image)
         pub.publish(boxes)
+        # cv.imshow('frame', source_image)
+        # cv.waitKey(1)
         rate.sleep()
