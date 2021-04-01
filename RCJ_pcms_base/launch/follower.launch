@@ -10,7 +10,7 @@
         name="pf_initializer"
         pkg="rcj_pcms_base"
         type="PFInitializer.py"
-        required="true"
+        required="false"
         output="screen"
     />
     <node
