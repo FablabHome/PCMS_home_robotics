@@ -119,7 +119,6 @@ class PersonFollower:
                     self.target_box.draw(srcframe, (32, 255, 0), 9)
                     self.target_box.draw_centroid(srcframe, (32, 255, 0), 9)
 
-
             msg = PFRobotData()
             if self.target_box is None:
                 if PersonFollower.STATE == 'NORMAL':
