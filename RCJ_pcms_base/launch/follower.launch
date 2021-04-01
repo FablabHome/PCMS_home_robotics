@@ -1,11 +1,12 @@
 <launch>
+    <arg name="image_source" default="/image_raw"/>
     <node
         name="YD"
         pkg="rcj_pcms_base"
         type="YOLODetectionNode.py"
         required="true"
         output="screen"
-    />
+    ><param name="image_source" value="$(arg image_source)"/></node>
     <node
         name="pf_initializer"
         pkg="rcj_pcms_base"

@@ -20,7 +20,7 @@ class YOLODetectionNode:
 
     def __init__(self):
         self.cam_sub = rospy.Subscriber(
-            '/camera/rgb/image_raw/compressed',
+            rospy.get_param('~image_source'),
             sensor_msgs.msg.CompressedImage,
             self.image_callback,
             queue_size=1
