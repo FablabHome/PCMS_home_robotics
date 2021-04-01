@@ -19,6 +19,7 @@ class YOLODetectionNode:
     H = 480
 
     def __init__(self):
+        rospy.loginfo(f'Getting image from {rospy.get_param("~image_source")}')
         self.cam_sub = rospy.Subscriber(
             rospy.get_param('~image_source'),
             sensor_msgs.msg.CompressedImage,
@@ -64,6 +65,7 @@ class YOLODetectionNode:
                 self.image_callback,
                 queue_size=1
             )
+            rospy.loginfo(f'Changed new image source to {new_topic}')
             ok = True
         except rospy.exceptions.ROSException:
             ok = False
