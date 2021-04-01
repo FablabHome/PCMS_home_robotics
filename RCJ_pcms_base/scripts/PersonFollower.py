@@ -81,7 +81,6 @@ class PersonFollower:
     def main(self):
         lost_timeout = rospy.get_rostime() + PersonFollower.LOST_TIMEOUT
         while not rospy.is_shutdown():
-            # self.max_distance = 0
             srcframe = self.rgb_image
             if srcframe is None:
                 continue
@@ -107,7 +106,6 @@ class PersonFollower:
                     self.distance_and_boxes.update({dist_between_target: person_box})
 
                 current_descriptor = self.person_extractor.parse_descriptor(source_img)
-                # rospy.loginfo(distance_between_centroid)
 
                 front_similarity = self.__compare_descriptor(current_descriptor, self.front_descriptor)
                 back_similarity = self.__compare_descriptor(current_descriptor, self.back_descriptor)
@@ -141,16 +139,6 @@ class PersonFollower:
                     msg.follow_point = (-1, -1)
             else:
                 msg.follow_point = self.target_box.centroid
-            # if self.rgb_image is None or not self.initialized:
-            #     continue
-            #
-            # if self.target_box is not None:
-            #     msg.follow_point = self.target_box.centroid
-            # else:
-            #     if self.tmp_box is None:
-            #         msg.follow_point = (-1, -1)
-            #     else:
-            #         msg.follow_point = self.tmp_box.centroid
 
             self.robot_handler_publisher.publish(msg)
 
