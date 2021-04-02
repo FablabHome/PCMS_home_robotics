@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+"""
+MIT License
+
+Copyright (c) 2020 rootadminWalker
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
+
 from os import path
 
 import cv2 as cv
@@ -21,7 +46,10 @@ class PersonFollower:
 
     SIMIL_ERROR = 0.63
     STATE = 'NORMAL'  # SEARCHING, LOST
+
+    # Timeouts
     LOST_TIMEOUT = rospy.Duration(3)
+    CONFIRM_TIMEOUT = rospy.Duration(1)
 
     def __init__(self, person_extractor: PersonReidentification):
         self.person_extractor = person_extractor
@@ -79,19 +107,25 @@ class PersonFollower:
             PersonFollower.CENTROID = (PersonFollower.W // 2, PersonFollower.H // 2)
 
     def main(self):
+        # Initialize the timeouts
         lost_timeout = rospy.get_rostime() + PersonFollower.LOST_TIMEOUT
+        confirm_timeout = rospy.get_rostime() + PersonFollower.CONFIRM_TIMEOUT
+
         while not rospy.is_shutdown():
             srcframe = self.rgb_image
             if srcframe is None:
                 continue
 
             self.distance_and_boxes = {}
+            # Update self.last_box if the first target_box was confirmed
             if self.target_box is not None:
                 self.last_box = self.target_box
             self.target_box = self.tmp_box = None
 
             for det_box in self.detection_boxes:
+                # Unpack the source image
                 source_img = self.bridge.compressed_imgmsg_to_cv2(det_box.source_img)
+                # Skip detections which was not person
                 if det_box.label.strip() != 'person':
                     continue
 
@@ -99,27 +133,29 @@ class PersonFollower:
                                   score=det_box.score,
                                   source_img=source_img)
 
-                person_box.draw(srcframe, (32, 0, 255), 3)
-                person_box.draw_centroid(srcframe, (32, 0, 255), 3)
+                # Draw the box in red as the base layer
+                self.__draw_box_and_centroid(srcframe, person_box, (32, 0, 255), 3, 3)
+
+                # Calculate distances between the last existance of the target
                 if self.last_box is not None:
                     dist_between_target = self.last_box.calc_distance_between_point(person_box.centroid)
                     self.distance_and_boxes.update({dist_between_target: person_box})
 
+                # Parse the current descriptor
                 current_descriptor = self.person_extractor.parse_descriptor(source_img)
 
+                # Compare the similarity
                 front_similarity = self.__compare_descriptor(current_descriptor, self.front_descriptor)
                 back_similarity = self.__compare_descriptor(current_descriptor, self.back_descriptor)
 
                 # if self.max_distance < distance_between_centroid < 250:
                 if self.__similarity_lt(front_similarity) or self.__similarity_lt(back_similarity):
                     PersonFollower.STATE = 'NORMAL'
-                    # max_distance = distance_between_centroid
                     self.target_box = person_box
-
-                    self.target_box.draw(srcframe, (32, 255, 0), 9)
-                    self.target_box.draw_centroid(srcframe, (32, 255, 0), 9)
+                    self.__draw_box_and_centroid(srcframe, self.target_box, (32, 255, 0), 9, 9)
 
             msg = PFRobotData()
+            # Publishing data to the robot handler
             if self.target_box is None:
                 if PersonFollower.STATE == 'NORMAL':
                     PersonFollower.STATE = 'SEARCHING'
@@ -130,8 +166,7 @@ class PersonFollower:
                     else:
                         if len(self.distance_and_boxes) > 0:
                             self.tmp_box = self.distance_and_boxes[min(self.distance_and_boxes.keys())]
-                            self.tmp_box.draw(srcframe, (32, 255, 255), 5)
-                            self.tmp_box.draw_centroid(srcframe, (32, 255, 255), 5)
+                            self.__draw_box_and_centroid(srcframe, self.tmp_box, (32, 255, 255), 5, 5)
                             msg.follow_point = self.tmp_box.centroid
 
                 elif PersonFollower.STATE == 'LOST':
@@ -160,6 +195,11 @@ class PersonFollower:
     @staticmethod
     def __compare_descriptor(desc1, desc2):
         return np.dot(desc1, desc2) / (np.linalg.norm(desc1) * np.linalg.norm(desc2))
+
+    @staticmethod
+    def __draw_box_and_centroid(image, box, color, thickness, radius):
+        box.draw(image, color, thickness)
+        box.draw_centroid(image, color, radius)
 
 
 if __name__ == '__main__':
