@@ -1,12 +1,6 @@
-# tensorflow-gpu==2.0.0
 dlib>=19.16.0
-numpy==1.17.5
+tensorflow-gpu==2.2.0
 imutils>=0.5.3
 pyttsx3==2.71
-dataclasses>=0.72
-matplotlib>=3.2.1
-Werkzeug~=1.0.0
 Pillow~=5.1.0
-h5py~=2.10.0
-requests~=2.23.0
-actionlib~=1.12.0
+color_transfer
