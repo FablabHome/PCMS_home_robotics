@@ -26,12 +26,13 @@ SOFTWARE.
 
 from os import path
 
+import color_transfer
 import cv2 as cv
 import numpy as np
 import rospy
 from cv_bridge import CvBridge
-from home_robot_msgs.msg import ObjectBoxes, PFRobotData
-from home_robot_msgs.srv import PFInitializer, PFInitializerResponse
+from home_robot_msgs.msg import ObjectBoxes, PFRobotData, PFWaypoints
+from home_robot_msgs.srv import PFInitializer, PFInitializerRequest, PFInitializerResponse
 from rospkg import RosPack
 from sensor_msgs.msg import CompressedImage
 
@@ -51,18 +52,24 @@ class PersonFollower:
     LOST_TIMEOUT = rospy.Duration(3)
     CONFIRM_TIMEOUT = rospy.Duration(1)
 
+    # Waypoint maximize size and thickness
+    WAYPOINT_MAX_RADIUS = 12
+    WAYPOINT_THICKNESS = 2  # If thickness is -1 than the circle will be filled
+
     def __init__(self, person_extractor: PersonReidentification):
         self.person_extractor = person_extractor
         self.bridge = CvBridge()
 
         self.front_descriptor = self.back_descriptor = None
-
         self.target_box = self.last_box = self.tmp_box = None
+        self.rgb_image = None
+        self.front_img = self.back_img = None
+
         self.detection_boxes = []
         self.distance_and_boxes = {}
+        self.waypoints = []
         # self.max_distance = 0
 
-        self.rgb_image = None
         self.initialized = False
 
         rospy.Service('pf_initialize', PFInitializer, self.initialized_cb)
@@ -85,12 +92,28 @@ class PersonFollower:
             self.box_callback,
             queue_size=1
         )
+
+        rospy.Subscriber(
+            '/record_waypoint/waypoints',
+            PFWaypoints,
+            self.waypoints_callback,
+            queue_size=1
+        )
+
         rospy.set_param('~lost_target', False)
+        rospy.set_param('~toggle_waypoint_animation', True)
+        rospy.set_param('~waypoint_max_radius', PersonFollower.WAYPOINT_MAX_RADIUS)
+        rospy.set_param('~waypoint_thickness', PersonFollower.WAYPOINT_THICKNESS)
+
         self.main()
 
-    def initialized_cb(self, req):
+    def initialized_cb(self, req: PFInitializerRequest):
         self.front_descriptor = np.array(req.front_descriptor)
         self.back_descriptor = np.array(req.back_descriptor)
+
+        self.front_img = self.bridge.compressed_imgmsg_to_cv2(req.front_img)
+        self.back_img = self.bridge.compressed_imgmsg_to_cv2(req.back_img)
+
         self.initialized = True
         return PFInitializerResponse(True)
 
@@ -106,10 +129,15 @@ class PersonFollower:
             PersonFollower.W = W
             PersonFollower.CENTROID = (PersonFollower.W // 2, PersonFollower.H // 2)
 
+    def waypoints_callback(self, waypoints: PFWaypoints):
+        serialized_waypoints = waypoints.waypoints
+        self.waypoints = list(map(lambda w: w.waypoint, serialized_waypoints))
+
     def main(self):
         # Initialize the timeouts
         lost_timeout = rospy.get_rostime() + PersonFollower.LOST_TIMEOUT
-        confirm_timeout = rospy.get_rostime() + PersonFollower.CONFIRM_TIMEOUT
+        # confirm_timeout = rospy.get_rostime() + PersonFollower.CONFIRM_TIMEOUT
+        waypoint_color = (32, 255, 0)
 
         while not rospy.is_shutdown():
             srcframe = self.rgb_image
@@ -125,7 +153,7 @@ class PersonFollower:
             for det_box in self.detection_boxes:
                 # Unpack the source image
                 source_img = self.bridge.compressed_imgmsg_to_cv2(det_box.source_img)
-                # Skip detections which was not person
+                # Ignore detections which was not person
                 if det_box.label.strip() != 'person':
                     continue
 
@@ -141,15 +169,23 @@ class PersonFollower:
                     dist_between_target = self.last_box.calc_distance_between_point(person_box.centroid)
                     self.distance_and_boxes.update({dist_between_target: person_box})
 
+                # Matching styles with the original front and back image
+                matched_front = color_transfer.color_transfer(self.front_img, source_img)
+                matched_back = color_transfer.color_transfer(self.back_img, source_img)
+
                 # Parse the current descriptor
-                current_descriptor = self.person_extractor.parse_descriptor(source_img)
+                matched_front_desc = self.person_extractor.parse_descriptor(matched_front)
+                matched_back_desc = self.person_extractor.parse_descriptor(matched_back)
 
                 # Compare the similarity
-                front_similarity = self.__compare_descriptor(current_descriptor, self.front_descriptor)
-                back_similarity = self.__compare_descriptor(current_descriptor, self.back_descriptor)
+                front_similarity = self.__compare_descriptor(matched_front_desc, self.front_descriptor)
+                back_similarity = self.__compare_descriptor(matched_back_desc, self.back_descriptor)
 
                 # if self.max_distance < distance_between_centroid < 250:
                 if self.__similarity_lt(front_similarity) or self.__similarity_lt(back_similarity):
+                    cv.imshow('matched_front', matched_front)
+                    cv.imshow('matched_back', matched_back)
+                    cv.imshow('front_img', self.front_img)
                     PersonFollower.STATE = 'NORMAL'
                     self.target_box = person_box
                     self.__draw_box_and_centroid(srcframe, self.target_box, (32, 255, 0), 9, 9)
@@ -165,16 +201,25 @@ class PersonFollower:
                         PersonFollower.STATE = 'LOST'
                     else:
                         if len(self.distance_and_boxes) > 0:
+                            # Use the box closest to the last existance of the target
                             self.tmp_box = self.distance_and_boxes[min(self.distance_and_boxes.keys())]
-                            self.__draw_box_and_centroid(srcframe, self.tmp_box, (32, 255, 255), 5, 5)
                             msg.follow_point = self.tmp_box.centroid
+                            # Draw box and update waypoint_color
+                            self.__draw_box_and_centroid(srcframe, self.tmp_box, (32, 255, 255), 5, 5)
+                            waypoint_color = (32, 255, 255)
 
                 elif PersonFollower.STATE == 'LOST':
                     msg.follow_point = (-1, -1)
             else:
                 msg.follow_point = self.target_box.centroid
+                waypoint_color = (32, 255, 0)
 
+            # Publish the data to the robot handler
             self.robot_handler_publisher.publish(msg)
+
+            # Draw the waypoints when param 'toggle_waypoint_animation' is True
+            if rospy.get_param('~toggle_waypoint_animation'):
+                self.__draw_waypoints(srcframe, waypoint_color)
 
             # drown_image = node.bridge.cv2_to_compressed_imgmsg(rgb_image)
             # node.image_publisher.publish(drown_image)
@@ -200,6 +245,16 @@ class PersonFollower:
     def __draw_box_and_centroid(image, box, color, thickness, radius):
         box.draw(image, color, thickness)
         box.draw_centroid(image, color, radius)
+
+    def __draw_waypoints(self, image, color):
+        if len(self.waypoints) == 0:
+            return
+
+        radius_increase = rospy.get_param('~waypoint_max_radius') / len(self.waypoints)
+        current_radius = 0
+        for waypoint in self.waypoints:
+            current_radius += radius_increase
+            cv.circle(image, waypoint, int(current_radius), color, rospy.get_param('~waypoint_thickness'))
 
 
 if __name__ == '__main__':
