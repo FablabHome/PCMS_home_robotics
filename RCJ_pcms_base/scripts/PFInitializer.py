@@ -161,7 +161,6 @@ if __name__ == '__main__':
             continue
 
         node.init_box.draw(rgb_image, (255, 0, 32), 3)
-
         cv.putText(rgb_image, info_text, (10, node.H - 40),
                    cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
@@ -204,6 +203,11 @@ if __name__ == '__main__':
     back_descriptor = person_descriptor_extractor.parse_descriptor(back_image)
     back_descriptor = back_descriptor[0].tolist()
 
-    request_msg = PFInitializerRequest(serialized_front_img, front_descriptor, back_descriptor)
-    response = node.call_person_follower(request_msg)
+    request_srv = PFInitializerRequest()
+    request_srv.front_img = serialized_front_img
+    request_srv.back_img = serialized_back_img
+    request_srv.front_descriptor = front_descriptor
+    request_srv.back_descriptor = back_descriptor
+
+    response = node.call_person_follower(request_srv)
     rospy.set_param('~initialized', True)
