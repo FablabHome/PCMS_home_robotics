@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/RCJ_pcms_base/scripts/tests/PersonFollower/TestCorrdinatesMoving.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/RCJ_pcms_base/scripts/tests/PersonFollower/WayPointRecording.py">
           <value>
             <Attribute>
