@@ -1,6 +1,5 @@
-from math import cos, sin, tan, pi
-
 import cv2 as cv
+import numpy as np
 import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CompressedImage
@@ -8,7 +7,7 @@ from sensor_msgs.msg import Image, CompressedImage
 
 class TrueCoordinatesTest:
     # Camera uplifted angle
-    A_THETA = 20
+    CAMERA_ANGLE = 17
 
     # Field of view of astra camera
     FOV_H = 60
@@ -42,22 +41,9 @@ class TrueCoordinatesTest:
     def depth_callback(self, depth: Image):
         self.depth_image = self.bridge.imgmsg_to_cv2(depth)
 
-    @classmethod
-    def true_pos(cls, FOV_H, FOV_V, virtual_x, virtual_y, real_dist):
-        real_x = (float(virtual_x) / cls.W) * 2 * float(real_dist) * tan(cls.angle_to_radian(FOV_H) / 2)
-        real_y = (float(virtual_y) / cls.H) * 2 * float(real_dist) * tan(cls.angle_to_radian(FOV_V) / 2)
-        return real_x, real_y
-
     @staticmethod
-    def angle_to_radian(angle):
-        return ((2 * pi) * angle) / 360
-
-    @classmethod
-    def tune_pos_with_cam_angle(cls, theta, old_x):
-        rad_theta = cls.angle_to_radian(theta)
-        ox = old_x * cos(rad_theta)
-        oy = ox * sin(rad_theta)
-        return ox, oy
+    def angle_2_radian(angle):
+        return (np.pi * angle) / 180
 
     @classmethod
     def reverse_l2_cross(cls, ox, oy):
@@ -77,21 +63,40 @@ class TrueCoordinatesTest:
             depth_image = self.depth_image.copy()
 
             if init_box is not None:
-                x, y, w, h = init_box
-                cv.rectangle(rgb_image, (x, y), (x + w, y + h), (32, 0, 255), 6)
+                x, real_y, w, h = init_box
+                cv.rectangle(rgb_image, (x, real_y), (x + w, real_y + h), (32, 0, 255), 6)
 
                 cx = min(640, (w // 2) + x)
-                cy = min(480, (h // 2) + y)
+                cy = min(480, (h // 2) + real_y)
                 cz = depth_image[cy, cx]
                 cv.circle(rgb_image, (cx, cy), 5, (32, 255, 0), -1)
 
-                # Reverse l 2 cross
-                cx, cy = self.reverse_l2_cross(cx, cy)
+                # Reverse l 2z cross
+                # cx, cy = self.reverse_l2_cross(cx, cy)
 
-                real_x, real_y = self.true_pos(TrueCoordinatesTest.FOV_H, TrueCoordinatesTest.FOV_V, cx, cy, cz)
-                distance, angle_down_y = self.tune_pos_with_cam_angle(TrueCoordinatesTest.A_THETA, cz)
-                real_x, angle_down_y = int(real_x), int(angle_down_y)
-                info_text = f'original: {(cx, cy, cz)}, reality: {(real_x, angle_down_y, distance)}'
+                # real_y = cz * sin(self.angle_2_radian(TrueCoordinatesTest.A_THETA)) + (cy / 480 - 1) * cz * tan(self.angle_2_radian(49.5 / 2)) * cos(self.angle_2_radian(TrueCoordinatesTest.A_THETA))
+                rad_h = self.angle_2_radian(TrueCoordinatesTest.FOV_H / 2)
+                rad_v = self.angle_2_radian(TrueCoordinatesTest.FOV_V / 2)
+                rad_cam_angle = self.angle_2_radian(TrueCoordinatesTest.CAMERA_ANGLE)
+                real_w = 2 * cz * np.tan(rad_h)
+                real_h = 2 * cz * np.tan(rad_v)
+
+                # Real x
+                real_x = real_w * cx / TrueCoordinatesTest.W
+                real_x -= TrueCoordinatesTest.H / 2
+
+                # Real y
+                real_y = real_h * cy / TrueCoordinatesTest.H
+                FE = cz * np.sin(rad_cam_angle)
+                GF = (0.5 * real_h - real_y) * np.cos(rad_cam_angle)
+                final_y = FE + GF
+
+                # Real z
+                OD = cz * np.cos(rad_cam_angle)
+                ED = GF * np.tan(rad_cam_angle)
+                real_z = OD - ED
+
+                info_text = f'original: {(cx, cy, cz)}, reality: {real_x:.2f}, {final_y:.2f}, {real_z:.2f}'
                 cv.putText(rgb_image, info_text, (3, TrueCoordinatesTest.H - 20), cv.FONT_HERSHEY_SIMPLEX, 0.5,
                            (32, 255, 0), 2)
 
