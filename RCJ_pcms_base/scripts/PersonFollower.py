@@ -183,14 +183,15 @@ class PersonFollower:
 
                 # if self.max_distance < distance_between_centroid < 250:
                 if self.__similarity_lt(front_similarity) or self.__similarity_lt(back_similarity):
-                    cv.imshow('matched_front', matched_front)
-                    cv.imshow('matched_back', matched_back)
-                    cv.imshow('front_img', self.front_img)
+                    # cv.imshow('matched_front', matched_front)
+                    # cv.imshow('matched_back', matched_back)
+                    # cv.imshow('front_img', self.front_img)
                     PersonFollower.STATE = 'NORMAL'
                     self.target_box = person_box
                     self.__draw_box_and_centroid(srcframe, self.target_box, (32, 255, 0), 9, 9)
 
             msg = PFRobotData()
+            msg.follow_point = (-1, -1)
             # Publishing data to the robot handler
             if self.target_box is None:
                 if PersonFollower.STATE == 'NORMAL':
@@ -267,26 +268,3 @@ if __name__ == '__main__':
     net = cv.dnn.readNet(bin_path, xml_path)
     person_descriptor_extractor = PersonReidentification(net)
     node = PersonFollower(person_descriptor_extractor)
-
-#     while not rospy.is_shutdown():
-#         msg = PFRobotData()
-#         rgb_image = node.rgb_image
-#         if rgb_image is None or not node.initialized:
-#             continue
-#
-#         if node.target_box is not None:
-#             msg.follow_point = node.target_box.centroid
-#         else:
-#             msg.follow_point = (-1, -1)
-#
-#         node.robot_handler_publisher.publish(msg)
-#
-#         # drown_image = node.bridge.cv2_to_compressed_imgmsg(rgb_image)
-#         # node.image_publisher.publish(drown_image)
-#
-#         cv.imshow('frame', rgb_image)
-#         key = cv.waitKey(1)
-#         if key in [ord('q'), 27]:
-#             break
-#
-# cv.destroyAllWindows()
