@@ -83,7 +83,7 @@ class TrueCoordinatesTest:
 
                 # Real x
                 real_x = real_w * cx / TrueCoordinatesTest.W
-                real_x -= TrueCoordinatesTest.H / 2
+                real_x -= (real_w / 2)
 
                 # Real y
                 real_y = real_h * cy / TrueCoordinatesTest.H
