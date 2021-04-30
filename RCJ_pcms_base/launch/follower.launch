@@ -21,4 +21,11 @@
         required="true"
         output="screen"
     />
+    <node
+        name="waypoint_recorder"
+        pkg="rcj_pcms_base"
+        type="WayPointRecording.py"
+        required="true"
+        output="screen"
+    />
 </launch>
