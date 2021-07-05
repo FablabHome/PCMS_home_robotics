@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 MIT License
 
@@ -27,7 +28,7 @@ from core.base_classes import Node
 from core.Nodes import ActionController
 
 from std_msgs.msg import String
-from home_robot_msgs.msg import CommandData
+from home_robot_msgs.msg import CommandData, Voice
 
 import rospy
 
@@ -36,22 +37,36 @@ class ActionControllerNode(Node):
     def __init__(self, name: str = 'acp', anonymous: bool = False):
         super(ActionControllerNode, self).__init__(name=name, anonymous=anonymous)
 
+        self.acp_program = ActionController(node_id=self.name, config_file='./config/2021_keywords_live.json')
+
         # Create result publisher
         self.processed_result_publisher = rospy.Publisher(
-            f'{rospy.get_name()}/processed_result',
+            '~processed_result',
             CommandData,
+            queue_size=1
+        )
+
+        # # #
+        self.facial_pub = rospy.Publisher(
+            '/home_edu/facial',
+            String,
+            queue_size=0
+        )
+
+        self.speaker_pub = rospy.Publisher(
+            '/speaker/say',
+            String,
             queue_size=1
         )
 
         # Create Subscriber to subscribe for the text
         self.recognized_text_subscriber = rospy.Subscriber(
-            f'{rospy.get_name()}/recognized_text',
-            String,
+            '/voice/text',
+            Voice,
             self._callback,
             queue_size=1
         )
 
-        self.acp_program = ActionController(node_id=self.name, config_file='tests/Nodes/ActionController/test.json')
         self.result = CommandData()
 
         # Buffer of requests, as queue
@@ -59,9 +74,10 @@ class ActionControllerNode(Node):
 
         # Status of the ActionController
         self.is_running = False
-        rospy.set_param(f'{rospy.get_name}/is_running', self.is_running)
+        rospy.set_param('~is_running', self.is_running)
 
-    def _callback(self, text: String):
+    def _callback(self, voice_data: Voice):
+        text = voice_data.text
         # Append text into buffer
         self.buffer.append(text)
         # If Node is not running
@@ -71,11 +87,13 @@ class ActionControllerNode(Node):
             while len(self.buffer) > 0:
                 text = self.buffer.pop(0)
                 # Get caller from _connection_header
-                caller = text._connection_header['callerid']
+                caller = voice_data._connection_header['callerid']
                 rospy.loginfo(f'Processing request from {caller}')
 
                 # Run acp process and publish the result
-                self.result = self.acp_program.run(text.data, serialize=True)
+                self.result = self.acp_program.run(text, serialize=True)
+                if not self.result.response != '':
+                    self.facial_pub.publish("crying:Current text doesn't match anybody in config")
                 self.processed_result_publisher.publish(self.result)
             self.is_running = False
 
