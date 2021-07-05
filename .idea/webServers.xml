@@ -2,10 +2,10 @@
 <project version="4">
   <component name="WebServers">
     <option name="servers">
-      <webServer id="62851194-90a6-40d0-98dd-3b130ada2c4f" name="home_robot">
-        <fileTransfer rootFolder="/home/pcms/pcms_ros" accessType="SFTP" host="192.168.50.6" port="22" sshConfigId="5f50e089-9bc3-41f9-bb3e-795c10b0d4b5" sshConfig="pcms@192.168.50.6:22 password">
+      <webServer id="37115a91-3ded-44a8-9df9-14ed22b281d1" name="robot">
+        <fileTransfer rootFolder="/home/pcms/pcms/src" accessType="SFTP" host="192.168.50.17" port="22" sshConfigId="032d435a-ab22-493c-9d65-ec0481e12435" sshConfig="pcms@192.168.50.17:22 password">
           <advancedOptions>
-            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>
