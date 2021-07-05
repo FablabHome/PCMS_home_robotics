@@ -2,6 +2,8 @@
 
 import os
 
+import cv2 as cv
+import numpy as np
 import rospy
 import sensor_msgs.msg
 from PIL import Image
@@ -10,6 +12,7 @@ from home_robot_msgs.msg import ObjectBox, ObjectBoxes
 from home_robot_msgs.srv import ChangeImgSource, ChangeImgSourceResponse, ChangeImgSourceRequest
 from keras_yolo3.yolo import YOLO_np
 from rospkg import RosPack
+from sensor_msgs.msg import CompressedImage
 
 from core.Detection.YOLODetection import DetectBox
 
@@ -20,8 +23,14 @@ class YOLODetectionNode:
 
     def __init__(self):
         rospy.loginfo(f'Getting image from {rospy.get_param("~image_source")}')
+        self.source_image_pub = rospy.Publisher(
+            '~source_image/compressed',
+            CompressedImage,
+            queue_size=1
+        )
+
         self.cam_sub = rospy.Subscriber(
-            rospy.get_param('~image_source'),
+            rospy.get_param('~image_source', '/camera/rgb/image_raw'),
             sensor_msgs.msg.CompressedImage,
             self.image_callback,
             queue_size=1
@@ -33,6 +42,8 @@ class YOLODetectionNode:
             self.change_camera
         )
 
+        rospy.set_param('~lock', True)
+
         self.bridge = CvBridge()
 
         self.objects: [DetectBox] = []
@@ -40,6 +51,8 @@ class YOLODetectionNode:
 
     def image_callback(self, image: sensor_msgs.msg.CompressedImage):
         input_image = self.bridge.compressed_imgmsg_to_cv2(image)
+        if rospy.get_param('~reverse'):
+            input_image = cv.flip(input_image, 0)
         H, W, _ = input_image.shape
 
         YOLODetectionNode.H = H
@@ -105,41 +118,51 @@ if __name__ == "__main__":
     )
 
     while not rospy.is_shutdown():
-        box_items = []
-        boxes = ObjectBoxes()
-        # Get objects and source images
-        # objects = node.objects
-        blob = node.blob
-        source_image = node.source_image
+        if not rospy.get_param('~lock'):
+            box_items = []
+            boxes = ObjectBoxes()
+            # Get objects and source images
+            # objects = node.objects
+            blob = node.blob
+            source_image = node.source_image
 
-        if source_image is None or blob is None:
-            continue
+            if source_image is None or blob is None:
+                continue
 
-        _, out_boxes, out_classes, out_scores = _model.detect_image(blob)
+            drown_image, out_boxes, out_classes, out_scores = _model.detect_image(blob)
+            drown_image = np.array(drown_image)
 
-        for obj, label, score in zip(out_boxes, out_classes, out_scores):
-            x1, y1, x2, y2 = obj
-            box = ObjectBox()
-            # Input box data
-            box.model = 'yolo'
-            box.x1 = x1
-            box.y1 = y1
-            box.x2 = x2
-            box.y2 = y2
-            box.score = score
-            box.label = classnames[label]
+            for obj, label, score in zip(out_boxes, out_classes, out_scores):
+                x1, y1, x2, y2 = obj
+                if score < 0.45:
+                    continue
 
-            box_image = source_image[box.y1:box.y2, box.x1:box.x2].copy()
+                box = ObjectBox()
+                # Input box data
+                box.model = 'yolo'
+                box.x1 = x1
+                box.y1 = y1
+                box.x2 = x2
+                box.y2 = y2
+                box.score = score
+                box.label = classnames[label]
 
-            # Serialize the image
-            serialized_image = node.bridge.cv2_to_compressed_imgmsg(box_image)
-            box.source_img = serialized_image
+                box_image = source_image[box.y1:box.y2, box.x1:box.x2].copy()
 
-            box_items.append(box)
+                # Serialize the image
+                serialized_image = node.bridge.cv2_to_compressed_imgmsg(box_image)
+                box.source_img = serialized_image
 
-        boxes.boxes = box_items
-        boxes.source_img = node.bridge.cv2_to_compressed_imgmsg(source_image)
-        pub.publish(boxes)
-        # cv.imshow('frame', source_image)
-        # cv.waitKey(1)
-        rate.sleep()
+                box_items.append(box)
+
+            boxes.boxes = box_items
+            boxes.source_img = node.bridge.cv2_to_compressed_imgmsg(source_image)
+            # serialized_drown_img = node.bridge.cv2_to_compressed_imgmsg(np.array(drown_image))
+            # node.source_image_pub.publish(serialized_drown_img)
+            pub.publish(boxes)
+            try:
+                cv.imshow('frame', drown_image)
+                cv.waitKey(1)
+            except:
+                rospy.loginfo(drown_image.shape)
+            rate.sleep()
