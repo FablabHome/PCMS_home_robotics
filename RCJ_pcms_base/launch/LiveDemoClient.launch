@@ -1,30 +1,37 @@
 <launch>
+    <include file="$(find rcj_pcms_base)/launch/FaceDetection.launch"/>
+    <include file="$(find rcj_pcms_base)/launch/FaceMaskDetection.launch"/>
+    <include file="$(find rcj_pcms_base)/launch/YOLODetection.launch">
+        <arg name="image_source" value="/bottom_camera/rgb/image_raw/compressed"/>
+        <arg name="reverse" value="true"/>
+    </include>
+    <include file="$(find rcj_pcms_base)/launch/GenderAgeDetection.launch"/>
     <node
-        name="YOLODetection"
-        pkg="home_edu_2020"
-        type="YOLODetection.py"
+        pkg="rcj_pcms_base"
+        name="acp"
+        type="ActionControllerNode.py"
         required="true"
         output="screen"
     />
     <node
-        name="personFollower"
-        pkg="home_edu_2020"
-        type="personFollower.py"
+        pkg="rcj_pcms_base"
+        name="show_face_detections"
+        type="ShowFaceDetections.py"
         required="true"
         output="screen"
     />
     <node
-        name="SpeechQuestion"
-        pkg="home_edu_2020"
-        type="SpeechQuestion.py"
-        required="true"
+        pkg="rcj_pcms_base"
+        name="manipulator_grab"
+        type="ManipulatorGrab.py"
+        required="false"
         output="screen"
     />
     <node
-        name="VideoMain"
-        pkg="home_edu_2020"
-        type="VideoMain.py"
-        required="true"
+        pkg="rcj_pcms_base"
+        name="qr_code"
+        type="QrCode.py"
+        required="false"
         output="screen"
     />
 </launch>
