@@ -37,7 +37,7 @@ class ActionControllerNode(Node):
     def __init__(self, name: str = 'acp', anonymous: bool = False):
         super(ActionControllerNode, self).__init__(name=name, anonymous=anonymous)
 
-        self.acp_program = ActionController(node_id=self.name, config_file='./config/2021_keywords_live.json')
+        self.acp_program = ActionController(node_id=self.name, config_file='./config/tv_show.json')
 
         # Create result publisher
         self.processed_result_publisher = rospy.Publisher(
@@ -93,7 +93,7 @@ class ActionControllerNode(Node):
                 # Run acp process and publish the result
                 self.result = self.acp_program.run(text, serialize=True)
                 if not self.result.response != '':
-                    self.facial_pub.publish("crying:Current text doesn't match anybody in config")
+                    self.facial_pub.publish(f"crying:Current text <{text}> doesn't match anybody in config")
                 self.processed_result_publisher.publish(self.result)
             self.is_running = False
 
