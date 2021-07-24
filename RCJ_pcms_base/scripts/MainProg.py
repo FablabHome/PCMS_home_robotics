@@ -62,23 +62,29 @@ class MainProg:
         self.codes[code]()
 
     def _alpha(self):
-        faces = rospy.wait_for_message('/FD/faces', ObjectBoxes)
-        while len(faces.boxes) < 1:
+        face_queue = [0]
+        while not all(face_queue):
             faces = rospy.wait_for_message('/FD/faces', ObjectBoxes)
+            face_queue.append(len(faces.boxes))
+            rospy.loginfo(face_queue)
+            if len(face_queue) > 25:
+                face_queue.pop(0)
 
-        rospy.loginfo('list')
-        self.speaker_srv('Good evening, welcome to the Robi Restaurant, my name is robie, and I will be serving you today')
+        self.speaker_srv('Good morning, welcome to the Robi Restaurant, my name is robie, and I will be serving you today')
         self.speaker_srv('Before entering the restaurant, please show me your health code')
-        rospy.sleep(2)
-        self.speaker_srv('Lady, please wear your mask probably')
         rospy.set_param('/qr_code/lock', False)
+        rospy.sleep(2)
+        self.speaker_srv('Mister, please wear your mask properly')
 
     def _beta(self):
-        while rospy.wait_for_message('/lift_hand_up_detection/hand_up_count', Int16).data < 1:
-            continue
+        hand_queue = [False]
+        while not all(hand_queue):
+            hand_queue.append(rospy.wait_for_message('/lift_hand_up_detection/hand_up_count', Int16).data > 0)
+            if len(hand_queue) > 3:
+                hand_queue.pop(0)
 
         self.speaker_pub.publish("I've saw you, coming")
-        data = {'point': [-1.46, 0.09, 0.44, 0.89], 'wait_until_end': True}
+        data = {'point': [1.754736907, -1.976775948, -0.070871873, 0.99748542723], 'wait_until_end': True}
         go_to_point.main(data, self.goal_pub)
         self.speaker_srv('May i take your order?')
 
@@ -86,16 +92,6 @@ class MainProg:
         rospy.set_param('/FMD/kill', True)
         rospy.set_param('/YD/lock', False)
         t = Twist()
-
-        t.linear.x = 0.2
-        self.wheel_pub.publish(t)
-
-        rospy.sleep(2.2)
-
-        t.linear.x = 0.2
-        self.wheel_pub.publish(t)
-
-        rospy.sleep(2)
 
         rospy.set_param('/manipulator_grab/lock', False)
 
@@ -114,7 +110,7 @@ class MainProg:
         self.wheel_pub.publish(t)
         rospy.sleep(2)
 
-        data = {'point': [-1.46, 0.09, 0.896, 0.4438], 'wait_until_end': True}
+        data = {'point': [1.754736907, -1.976775948, 0.99742867, 0.07166617], 'wait_until_end': True}
         go_to_point.main(data, self.goal_pub)
         self.speaker_srv('Here are your drinks, please enjoy')
 
