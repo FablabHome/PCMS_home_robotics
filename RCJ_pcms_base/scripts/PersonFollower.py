@@ -49,7 +49,7 @@ class PersonFollower:
     STATE = 'NORMAL'  # SEARCHING, LOST
 
     # Timeouts
-    LOST_TIMEOUT = rospy.Duration(3)
+    LOST_TIMEOUT = rospy.Duration(0.5)
     CONFIRM_TIMEOUT = rospy.Duration(1)
 
     # Waypoint maximize size and thickness
@@ -125,7 +125,6 @@ class PersonFollower:
             self.rgb_image = self.bridge.compressed_imgmsg_to_cv2(detections.source_img)
             H, W, _ = self.rgb_image.shape
 
-            PersonFollower.H = H
             PersonFollower.W = W
             PersonFollower.CENTROID = (PersonFollower.W // 2, PersonFollower.H // 2)
 
