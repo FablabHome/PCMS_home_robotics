@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 from copy import copy
+from math import pi
 
 import numpy as np
 import rospy
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
-from home_robot_msgs.msg import ObjectBoxes, ObjectBox
+from home_robot_msgs.msg import ObjectBoxes
 from open_manipulator_msgs.srv import SetKinematicsPose, SetKinematicsPoseRequest, SetJointPosition, \
     SetJointPositionRequest
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
-from math import pi
 
 
 class ManipulatorGrab:
@@ -65,12 +65,12 @@ class ManipulatorGrab:
             queue_size=1
         )
 
-        self.bottle_box: ObjectBox = None
+        self.bottle_box = None
         self.main()
 
     def box_callback(self, boxes: ObjectBoxes):
         detection_boxes = boxes.boxes
-        key_func = lambda x: x.label.strip() == 'bottle' and (x.y2 - x.y1) * (x.x2 - x.x1) >= 3000
+        key_func = lambda x: x.label.strip() == 'bottle' and (x.y2 - x.y1) * (x.x2 - x.x1) >= 500
         bottle_boxes = list(filter(key_func, detection_boxes))
         if len(bottle_boxes) == 1:
             self.bottle_box = bottle_boxes[0]
@@ -143,9 +143,15 @@ class ManipulatorGrab:
         return real_x, real_y, real_z
 
     @staticmethod
-    def __avoid_zeropoints(point, depth_image):
+    def __avoid_zeropoints(point, depth_image, limit=None):
+        if limit is None:
+            limit = depth_image.shape[0]
+
         x, y = point
-        for each in range(1, depth_image.shape[0]):
+        if depth_image[y, x] != 0:
+            return depth_image[y, x]
+
+        for each in range(1, limit):
             up = y - each
             down = y + each
             left_x = x - each
@@ -162,7 +168,7 @@ class ManipulatorGrab:
                     distance = nonzero[0]
                     return distance
 
-        return 0
+        return -1
 
     # def find_bottle(self, status_list, start_time):
     #
@@ -191,11 +197,12 @@ class ManipulatorGrab:
                 #     start_time = rospy.get_rostime() + rospy.Duration(ManipulatorGrab.INIT_TIMEOUT)
                 # status_list.append(True)
                 # if len(status_list) > 20:
+
                 #     status_list.pop(0)
                 if len(status_list) > 20:
                     status_list.pop(0)
 
-                if self.bottle_box is None and status_list.count(False) >= 10:
+                if self.bottle_box is None:
                     status_list.append(False)
                     start_time = rospy.get_rostime() + rospy.Duration(ManipulatorGrab.INIT_TIMEOUT)
                     continue
@@ -204,33 +211,53 @@ class ManipulatorGrab:
                 box = copy(self.bottle_box)
                 rospy.loginfo(status_list)
 
-            self.yolo_sub.unregister()
             self.speaker_pub.publish(String("Please don't move the bottle"))
 
+            cx = cy = .0
+            last_cz = cz = 0
+            last_box = copy(box)
+            turned = False
             while not rospy.is_shutdown():
+                box = copy(self.bottle_box)
+                if box is None:
+                    box = copy(last_box)
+
                 cx = box.x1 + (box.x2 - box.x1) // 2
                 cy = box.y1 + (box.y2 - box.y1) // 2
+
                 depth_img = rospy.wait_for_message('/bottom_camera/depth/image_raw', Image)
                 depth_img = self.bridge.imgmsg_to_cv2(depth_img)
-                cz = self.__avoid_zeropoints((cx, cy), depth_img)
+                cz = self.__avoid_zeropoints((cx, cy), depth_img, limit=20)
+                # cz = depth_img[cy, cx]
+                rospy.loginfo(f'\t\t{cz}')
+                cz = cz if cz != -1 else last_cz
+                if cz == 0: continue
+
                 t = Twist()
-                rospy.loginfo(f'\t{cx}')
+                rospy.loginfo(f'\t{cx}, {cz}')
+                rospy.loginfo(abs(cx - 340))
 
-                rospy.loginfo(cz)
-
-                if cz - 590 > 4:
-                    rospy.loginfo('test')
-                    t.linear.x = 0.1
+                if abs(cx - 340) > 12 and not turned:
+                    t.angular.z = 0.02 if cx > 340 else -0.02
                     self.twist_pub.publish(t)
-
                 else:
-                    break
+                    turned = True
+                    if cz - 660 > 4:
+                        rospy.loginfo('test')
+                        t.linear.x = 0.05
+                        self.twist_pub.publish(t)
+                    else:
+                        break
 
-            cx = box.x1 + (box.x2 - box.x1) // 2
-            cy = box.y1 + (box.y2 - box.y1) // 2
-            get_depth_img = rospy.wait_for_message('/bottom_camera/depth/image_raw', Image)
-            depth_img = self.bridge.imgmsg_to_cv2(get_depth_img)
-            cz = self.__avoid_zeropoints((cx, cy), depth_img)
+                last_cz = cz
+                last_box = copy(box)
+
+            self.yolo_sub.unregister()
+            # cx = box.x1 + (box.x2 - box.x1) // 2
+            # cy = box.y1 + (box.y2 - box.y1) // 2
+            # get_depth_img = rospy.wait_for_message('/bottom_camera/depth/image_raw', Image)
+            # depth_img = self.bridge.imgmsg_to_cv2(get_depth_img)
+            # cz = self.__avoid_zeropoints((cx, cy), depth_img)
             print(cx, cy, cz)
 
             x, _, z = self.real_xyz(cx, cy, cz)
@@ -239,23 +266,26 @@ class ManipulatorGrab:
 
             z /= 1000
             x /= 1000
-            y = .24
+            y = .17
 
             z = round(z, 2)
 
             print(z, x, y)
-            self.move_to(0.1, 0, 0.24, 2)
+            self.move_to(0.1, 0, y, 2)
             rospy.sleep(2)
-            self.move_to(z / 2, 0, 0.24, 1)
+            self.move_to(z / 3, 0, y, 1)
             rospy.sleep(1)
-            self.move_to(z * (3.5 / 4), 0, 0.24, 1)
+            self.move_to(z / 2, 0, y, 1)
             rospy.sleep(1)
-            self.move_to(z, 0, 0.24, 1)
+            self.move_to(z * 0.6, 0, y, 1)
             rospy.sleep(1)
-            self.move_to(z + 0.02, 0, 0.24, 1)
-            rospy.sleep(1)
+            # self.move_to(z, 0, y, 1)
+            # rospy.sleep(1)
+            # self.move_to(z + 0.02, 0, y, 1)
+            # rospy.sleep(1)
 
         except Exception as e:
+            rospy.loginfo(e)
             self.speaker_pub.publish('Please land me the bottle in 5 seconds')
             self.move_to(0.287, 0, 0.191, 2)
             rospy.sleep(7)
@@ -267,6 +297,11 @@ class ManipulatorGrab:
 
         self.move_to(0.135, 0, 0.238, 1)
         rospy.sleep(1)
+
+        t = Twist()
+        t.linear.x = -0.2
+        self.twist_pub.publish(t)
+        rospy.sleep(2)
 
         self.move_to(0.13, 0.0, 0.144, 1)
         rospy.sleep(1)
