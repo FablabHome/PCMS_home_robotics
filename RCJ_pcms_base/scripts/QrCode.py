@@ -13,6 +13,11 @@ from std_msgs.msg import String
 rospy.init_node('qr_code')
 
 
+def unique_count_app(a):
+    colors, count = np.unique(a.reshape(-1,a.shape[-1]), axis=0, return_counts=True)
+    return colors[count.argmax()]
+
+
 def callback(img: CompressedImage):
     global bridge, srcframe
     srcframe = bridge.compressed_imgmsg_to_cv2(img)
@@ -64,7 +69,7 @@ def detect_color(img):
 
         int_averages = np.array(avg_colors, dtype=np.uint8)
         print(f'int_averages: {int_averages}')
-        if int_averages[-1] >= 150 and int_averages[1] <= 150:
+        if int_averages[-1] >= int_averages[1]:
             valid = False
         return valid
     except ZeroDivisionError:
@@ -96,15 +101,16 @@ def main():
         if crop_img2 is None:
             continue
         valid = detect_color(crop_img2)
+        rospy.loginfo(unique_count_app(crop_img2))
 
-        if valid == True:
+        if valid:
             cv2.putText(frame, "Valid", (int(img_y / 2 - 60), int(img_y / 2 + 200)), cv2.FONT_HERSHEY_SIMPLEX, 3,
                         (0, 255, 0), 5, cv2.LINE_AA, False)
             cv2.imshow('Barcode/QR code', frame)
             cv2.waitKey(3)
             time.sleep(3)
             pub.publish("Valid")
-        elif valid == False:
+        else:
             cv2.putText(frame, "Invalid", (int(img_y / 2 - 60), int(img_y / 2 + 200)), cv2.FONT_HERSHEY_SIMPLEX,
                         3,
                         (0, 0, 255), 5, cv2.LINE_AA, False)
@@ -115,10 +121,10 @@ def main():
 
         if not rospy.get_param('~lock'):
             if not valid:
-                speaker_pub.publish('Mister, Your QR code is invalid')
+                speaker_pub.publish('Mister, Your health code is invalid')
             else:
-                speaker_pub.publish('Your qr code valid')
+                speaker_pub.publish('Your health code is valid')
 
-# 4
+#
 if __name__ == '__main__':
     main()
