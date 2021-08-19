@@ -31,6 +31,7 @@ import rospy
 from cv_bridge import CvBridge
 from home_robot_msgs.msg import ObjectBoxes
 from home_robot_msgs.srv import PFInitializer, PFInitializerRequest
+from mr_voice.srv import SpeakerSrv
 from rospkg import RosPack
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
@@ -66,6 +67,7 @@ class PersonFollowerInitializer:
             self.yolo_boxes_callback,
             queue_size=1
         )
+        self.speaker_srv = rospy.ServiceProxy('/speaker/text', SpeakerSrv)
         self.call_person_follower = rospy.ServiceProxy('pf_initialize', PFInitializer)
         rospy.set_param('~initialized', False)
 
@@ -170,6 +172,7 @@ if __name__ == '__main__':
         cv.waitKey(1)
 
     rospy.loginfo('ok')
+    node.speaker_srv('Please let me see your back in 3 seconds')
     front_image = inside_init_box[0].source_img
     serialized_front_img = node.bridge.cv2_to_compressed_imgmsg(front_image)
     front_descriptor = person_descriptor_extractor.parse_descriptor(front_image)
@@ -211,3 +214,4 @@ if __name__ == '__main__':
 
     response = node.call_person_follower(request_srv)
     rospy.set_param('~initialized', True)
+    node.speaker_srv('I\'ve remembered you, you can start walking')
