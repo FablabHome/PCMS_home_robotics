@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 import rospy
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from home_robot_msgs.msg import PFWaypoints, PFWaypoint
+from visualization_msgs.msg import Marker, MarkerArray
+from tf.transformations import euler_from_quaternion
 
 
 class WayPointRecorder:
     # Waypoint recording parameters
     MAX_RECORDS = 30
-    UPDATE_DURATION = 0.5
+    UPDATE_DURATION = 0.01
 
     # Camera specs
     FOV_H = 60
@@ -23,18 +26,31 @@ class WayPointRecorder:
     CAMERA_ANGLE = 17
 
     def __init__(self):
-        self.waypoints: List[Tuple] = []
+        self.waypoints: List[List] = []
+        self.current_pose = self.last_pose = [0., 0., 0., 0.]
         self.update_duration = rospy.get_rostime() + rospy.Duration(WayPointRecorder.UPDATE_DURATION)
+        self.log_file = open('/tmp/test.txt', 'w+')
 
         self.waypoints_pub = rospy.Publisher(
             '~waypoints',
             PFWaypoints,
             queue_size=1
         )
+        self.visualization_pub = rospy.Publisher(
+            '/visualization_marker_array',
+            MarkerArray,
+            queue_size=1
+        )
         rospy.Subscriber(
             '/PFRHandler/fake_waypoint',
             PFWaypoint,
             self.callback,
+            queue_size=1
+        )
+        rospy.Subscriber(
+            '/amcl_pose',
+            PoseWithCovarianceStamped,
+            self.pose_callback,
             queue_size=1
         )
 
@@ -51,18 +67,38 @@ class WayPointRecorder:
             # Convert waypoint to true x, y, z
             x, y, z = point.x, point.y, point.z
             real_x, real_y, real_z = self.convert_waypoint_to_real(x, y, z)
+            real_x /= 1000
+            real_y /= 1000
+            real_z /= 1000
 
             # Record the waypoint
             WayPointRecorder.MAX_RECORDS = rospy.get_param('~max_records')
-            self.waypoints.append((real_x, real_y, real_z))
+            self.waypoints.append([real_x, real_y, real_z])
 
-            # Avoid overflowing waypoints according to ~max_records
-            overflow_error = len(self.waypoints) - WayPointRecorder.MAX_RECORDS
-            if overflow_error > 0:
-                for _ in range(overflow_error):
-                    self.waypoints.pop(0)
+            if not len(self.last_pose) == 0:
+                for waypoint in self.waypoints[:len(self.waypoints) - 1]:
+                    x, y, _, _ = self.current_pose
+                    lx, ly, _, _ = self.last_pose
+
+                    elx = x - lx
+                    ely = y - ly
+
+                    waypoint[0] -= elx
+                    waypoint[2] -= ely
+
+            text = str(self.waypoints)
+            self.log_file.write(text[1:len(text)-1] + '\n')
         else:
             return
+
+        self.last_pose = self.current_pose
+
+    def pose_callback(self, pose: PoseWithCovarianceStamped):
+        x = pose.pose.pose.position.x
+        y = pose.pose.pose.position.y
+        z = pose.pose.pose.orientation.z
+        w = pose.pose.pose.orientation.w
+        self.current_pose = [x, y, z, w]
 
     def convert_waypoint_to_real(self, x, y, z):
         rad_h = self.angle_2_radian(WayPointRecorder.FOV_H / 2)
@@ -92,13 +128,60 @@ class WayPointRecorder:
     def angle_2_radian(angle):
         return (np.pi * angle) / 180
 
+    @staticmethod
+    def into_marker(id, px, py, qz, qw, r, g, b, a):
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.header.stamp = rospy.Time()
+        marker.ns = "my_namespace"
+        marker.id = id
+        marker.type = Marker.SPHERE
+        marker.lifetime = rospy.Duration(0)
+        marker.action = Marker.ADD
+        marker.pose.position.x = px
+        marker.pose.position.y = py
+        marker.pose.position.z = 0.25
+        marker.pose.orientation.z = qz
+        marker.pose.orientation.w = qw
+        marker.scale.x = 0.15
+        marker.scale.y = 0.15
+        marker.scale.z = 0.15
+        marker.color.r = r
+        marker.color.g = g
+        marker.color.b = b
+        marker.color.a = a
+
+        return marker
+
     def main(self):
-        serialized_waypoints = list(map(lambda pos: PFWaypoint(pos[0], pos[1], pos[2]), self.waypoints))
-        self.waypoints_pub.publish(PFWaypoints(serialized_waypoints))
+        while not rospy.is_shutdown():
+            # Avoid overflowing waypoints according to ~max_records
+            overflow_error = len(self.waypoints) - WayPointRecorder.MAX_RECORDS
+            if overflow_error > 0:
+                for _ in range(overflow_error):
+                    self.waypoints.pop(0)
+
+            marker_array = MarkerArray()
+            for idx, waypoint in enumerate(self.waypoints):
+                x, y, d = waypoint
+                cx, cy, *czw = self.current_pose
+                cr = euler_from_quaternion([0, 0, *czw])[2]
+
+                alpha = np.arctan(x / d)
+                beta = cr - alpha
+                GE = d / np.cos(alpha)
+                px = cx + GE * np.cos(beta)
+                py = cy + GE * np.sin(beta)
+                print(cx, cy)
+
+                marker = self.into_marker(idx, px, py, 0, 0, 0, 0, 255, 1)
+                marker_array.markers.append(marker)
+
+            serialized_waypoints = list(map(lambda pos: PFWaypoint(pos[0], pos[1], pos[2]), self.waypoints))
+            self.visualization_pub.publish(marker_array)
+            self.waypoints_pub.publish(PFWaypoints(serialized_waypoints))
 
 
 if __name__ == '__main__':
     rospy.init_node('waypoint_recorder')
     node = WayPointRecorder()
-    while not rospy.is_shutdown():
-        node.main()
