@@ -24,6 +24,7 @@ SOFTWARE.
 
 """
 
+from collections import deque
 from os import path
 
 import color_transfer
@@ -49,12 +50,15 @@ class PersonFollower:
     STATE = 'NORMAL'  # SEARCHING, LOST
 
     # Timeouts
-    LOST_TIMEOUT = rospy.Duration(0.5)
-    CONFIRM_TIMEOUT = rospy.Duration(1)
+    LOST_TIMEOUT = rospy.Duration(1.5)
 
     # Waypoint maximize size and thickness
     WAYPOINT_MAX_RADIUS = 12
     WAYPOINT_THICKNESS = 2  # If thickness is -1 than the circle will be filled
+
+    # Continuously collect descriptors settings
+    DESCRIPTORS_COUNT = 20  # Descriptors maxlength
+    COLLECT_TIMEOUT = 1  # Collecting timeout
 
     def __init__(self, person_extractor: PersonReidentification):
         self.person_extractor = person_extractor
@@ -68,6 +72,7 @@ class PersonFollower:
         self.detection_boxes = []
         self.distance_and_boxes = {}
         self.waypoints = []
+        self.descriptors = deque([], maxlen=PersonFollower.DESCRIPTORS_COUNT)
         # self.max_distance = 0
 
         self.initialized = False
@@ -132,6 +137,29 @@ class PersonFollower:
         serialized_waypoints = waypoints.waypoints
         self.waypoints = list(map(lambda w: w.waypoint, serialized_waypoints))
 
+    @staticmethod
+    def __similarity_lt(similarity):
+        return similarity > PersonFollower.SIMIL_ERROR
+
+    @staticmethod
+    def __compare_descriptor(desc1, desc2):
+        return np.dot(desc1, desc2) / (np.linalg.norm(desc1) * np.linalg.norm(desc2))
+
+    @staticmethod
+    def __draw_box_and_centroid(image, box, color, thickness, radius):
+        box.draw(image, color, thickness)
+        box.draw_centroid(image, color, radius)
+
+    def __draw_waypoints(self, image, color):
+        if len(self.waypoints) == 0:
+            return
+
+        radius_increase = rospy.get_param('~waypoint_max_radius') / len(self.waypoints)
+        current_radius = 0
+        for waypoint in self.waypoints:
+            current_radius += radius_increase
+            cv.circle(image, waypoint, int(current_radius), color, rospy.get_param('~waypoint_thickness'))
+
     def main(self):
         # Initialize the timeouts
         lost_timeout = rospy.get_rostime() + PersonFollower.LOST_TIMEOUT
@@ -188,6 +216,7 @@ class PersonFollower:
                     PersonFollower.STATE = 'NORMAL'
                     self.target_box = person_box
                     self.__draw_box_and_centroid(srcframe, self.target_box, (32, 255, 0), 9, 9)
+                    self.descriptors.extend([matched_front_desc, matched_back_desc])
 
             msg = PFRobotData()
             msg.follow_point = (-1, -1)
@@ -232,29 +261,6 @@ class PersonFollower:
                 break
 
         cv.destroyAllWindows()
-
-    @staticmethod
-    def __similarity_lt(similarity):
-        return similarity > PersonFollower.SIMIL_ERROR
-
-    @staticmethod
-    def __compare_descriptor(desc1, desc2):
-        return np.dot(desc1, desc2) / (np.linalg.norm(desc1) * np.linalg.norm(desc2))
-
-    @staticmethod
-    def __draw_box_and_centroid(image, box, color, thickness, radius):
-        box.draw(image, color, thickness)
-        box.draw_centroid(image, color, radius)
-
-    def __draw_waypoints(self, image, color):
-        if len(self.waypoints) == 0:
-            return
-
-        radius_increase = rospy.get_param('~waypoint_max_radius') / len(self.waypoints)
-        current_radius = 0
-        for waypoint in self.waypoints:
-            current_radius += radius_increase
-            cv.circle(image, waypoint, int(current_radius), color, rospy.get_param('~waypoint_thickness'))
 
 
 if __name__ == '__main__':
